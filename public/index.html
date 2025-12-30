@@ -2,10 +2,40 @@
 <html lang="fr">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#0f172a" />
-    <meta name="description" content="Planning OS - Commando Edition" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="Planning OS - Plateforme de Productivité" />
     <title>Planning OS</title>
+    
+    <!-- ⚠️ C'EST ICI QUE LA MAGIE OPÈRE ⚠️ -->
+    <!-- Ce script charge tout le design (couleurs, mise en page PC/Mobile) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Configuration pour activer les couleurs spécifiques (Zinc, Emerald, etc.) -->
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              border: "hsl(var(--border))",
+              input: "hsl(var(--input))",
+              ring: "hsl(var(--ring))",
+              background: "hsl(var(--background))",
+              foreground: "hsl(var(--foreground))",
+            }
+          }
+        }
+      }
+    </script>
+    
+    <style>
+      /* Correctif pour les barres de défilement moches */
+      ::-webkit-scrollbar { width: 8px; height: 8px; }
+      ::-webkit-scrollbar-track { background: #09090b; }
+      ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 4px; }
+      ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+      body { background-color: #000000; color: white; }
+    </style>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
