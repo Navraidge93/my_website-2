@@ -12,11 +12,11 @@ const API_URL = "https://backend-production-c3b5.up.railway.app";
 const THEMES = {
   dark: {
     bg: 'bg-black',
-    sidebar: 'bg-neutral-950',
-    surface: 'bg-neutral-900',
-    border: 'border-neutral-800',
-    text: 'text-neutral-200',
-    textMuted: 'text-neutral-500',
+    sidebar: 'bg-zinc-950',
+    surface: 'bg-zinc-900',
+    border: 'border-zinc-800',
+    text: 'text-zinc-200',
+    textMuted: 'text-zinc-500',
     // Accent: Emerald (Vert Commando)
     accentBg: 'bg-emerald-600',
     accentGradient: 'bg-gradient-to-r from-emerald-600 to-emerald-500',
@@ -24,8 +24,8 @@ const THEMES = {
     accentBorder: 'border-emerald-500',
     accentRing: 'focus:ring-emerald-500',
     accentLight: 'bg-emerald-500/10',
-    input: 'bg-neutral-900',
-    hover: 'hover:bg-neutral-800'
+    input: 'bg-zinc-900',
+    hover: 'hover:bg-zinc-800'
   },
   light: {
     bg: 'bg-slate-50',
