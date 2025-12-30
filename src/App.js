@@ -59,7 +59,7 @@ export default function App() {
   const [messages, setMessages] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [aiMessages, setAiMessages] = useState([{ id: 1, sender: "Coach IA", text: "Je suis opérationnel. Donne-moi tes objectifs.", isMe: false }]);
-  const [isAiTyping, setIsAiTyping] = useState(false); // Nouvel état pour l'IA
+  const [isAiTyping, setIsAiTyping] = useState(false);
   
   // Inputs
   const [email, setEmail] = useState('');
@@ -154,7 +154,6 @@ export default function App() {
           sender: msg.sender_name,
           text: msg.content,
           time: new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-          // Correction comparaison ID (Int vs String)
           isMe: String(msg.sender_id) === String(user.id)
         }));
         setMessages(formatted);
@@ -232,7 +231,11 @@ export default function App() {
   const handleAddFriend = async (e) => {
     e.preventDefault();
     if (!friendEmail) return;
-    if (friendEmail === user.email) { alert("Tu ne peux pas t'ajouter toi-même !"); return; }
+
+    if (friendEmail === user.email) {
+        alert("Tu ne peux pas t'ajouter toi-même !");
+        return;
+    }
 
     try {
       const res = await fetch(`${API_URL}/api/social/friends/request`, {
@@ -240,18 +243,19 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id, friendEmail })
       });
+      
       const data = await res.json();
       if (data.success) {
         alert("Demande envoyée !");
         setShowFriendModal(false);
         setFriendEmail('');
+        fetchNotifications(user.id); // Refresh pour voir si changement (rare)
       } else {
         alert("Erreur: " + data.error);
       }
     } catch (err) { alert("Erreur connexion"); }
   };
 
-  // NOUVEAU: Accepter ami depuis les notifications/squad
   const handleAcceptFriend = async (friendId) => {
       try {
           const res = await fetch(`${API_URL}/api/social/friends/accept`, {
@@ -288,13 +292,12 @@ export default function App() {
     const userMsg = { id: Date.now(), sender: "Moi", text: newAiMessage, isMe: true };
     setAiMessages(prev => [...prev, userMsg]);
     setNewAiMessage('');
-    setIsAiTyping(true); // Animation
+    setIsAiTyping(true);
     
     setTimeout(() => {
         let response = "Je n'ai pas compris. Peux-tu reformuler ?";
         const lowerMsg = userMsg.text.toLowerCase();
         
-        // Logique IA simple mais efficace
         if (lowerMsg.includes('planning') || lowerMsg.includes('tache') || lowerMsg.includes('quoi faire')) {
             const schoolTasks = tasks.filter(t => t.category === 'school' && !t.done).length;
             const bizTasks = tasks.filter(t => t.category === 'business' && !t.done).length;
@@ -348,18 +351,27 @@ export default function App() {
               <div className={`p-6 rounded-2xl ${T.surface} border border-rose-500/30`}>
                   <h3 className="font-bold mb-4 flex items-center gap-2"><Users size={18}/> Utilisateurs Actifs (Simulation)</h3>
                   <div className="space-y-3">
-                      {[user, {name: "Thomas", email: "thomas@biz.com", id: 2}, {name: "Sarah", email: "sarah@ifsi.com", id: 3}].map(u => (
-                          u && <div key={u.id} className="flex justify-between items-center p-3 rounded-xl bg-black/20">
-                              <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-full bg-rose-900 flex items-center justify-center font-bold text-rose-200">{u.name[0]}</div>
-                                  <div>
-                                      <p className="text-sm font-bold text-white">{u.name}</p>
-                                      <p className="text-xs text-neutral-500">{u.email}</p>
-                                  </div>
+                      <div className="flex justify-between items-center p-3 rounded-xl bg-black/20">
+                          <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-rose-900 flex items-center justify-center font-bold text-rose-200">A</div>
+                              <div>
+                                  <p className="text-sm font-bold text-white">Admin</p>
+                                  <p className="text-xs text-neutral-500">System</p>
                               </div>
-                              <span className="text-xs text-emerald-500">Actif</span>
                           </div>
-                      ))}
+                          <span className="text-xs text-emerald-500">Connecté</span>
+                      </div>
+                      {/* Affichage d'un utilisateur exemple */}
+                      <div className="flex justify-between items-center p-3 rounded-xl bg-black/20">
+                          <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-indigo-900 flex items-center justify-center font-bold text-indigo-200">{user?.name[0]}</div>
+                              <div>
+                                  <p className="text-sm font-bold text-white">{user?.name}</p>
+                                  <p className="text-xs text-neutral-500">{user?.email}</p>
+                              </div>
+                          </div>
+                          <span className="text-xs text-emerald-500">Toi</span>
+                      </div>
                   </div>
               </div>
               <div className={`p-6 rounded-2xl ${T.surface} border border-rose-500/30`}>
@@ -367,11 +379,11 @@ export default function App() {
                   <div className="grid grid-cols-2 gap-4">
                       <div className="p-4 bg-black/20 rounded-xl">
                           <p className="text-xs text-neutral-500 uppercase">Messages Totaux</p>
-                          <p className="text-2xl font-bold text-white">{messages.length + 142}</p>
+                          <p className="text-2xl font-bold text-white">{messages.length}</p>
                       </div>
                       <div className="p-4 bg-black/20 rounded-xl">
                           <p className="text-xs text-neutral-500 uppercase">Tâches Créées</p>
-                          <p className="text-2xl font-bold text-white">{tasks.length + 89}</p>
+                          <p className="text-2xl font-bold text-white">{tasks.length}</p>
                       </div>
                   </div>
               </div>
@@ -381,7 +393,6 @@ export default function App() {
 
   // ================= VUES =================
 
-  // 1. LANDING PAGE
   if (view === 'landing') {
       return (
         <div className={`min-h-screen flex flex-col items-center justify-center p-4 ${T.bg} ${T.text} relative overflow-hidden font-sans`}>
@@ -404,20 +415,17 @@ export default function App() {
       );
   }
 
-  // 2. LOGIN
   if (view === 'login') {
     return (
       <div className={`min-h-screen flex items-center justify-center p-4 ${T.bg} ${T.text}`}>
         <button onClick={() => setView('landing')} className={`absolute top-8 left-8 hover:text-white flex items-center gap-2 transition-colors ${T.textMuted}`}>
             <ArrowLeft size={20} /> Retour
         </button>
-        
         <div className={`w-full max-w-sm p-8 rounded-3xl border ${T.border} ${T.surface} shadow-2xl relative overflow-hidden flex flex-col gap-6`}>
           <div className="text-center">
             <h1 className="text-2xl font-bold">Connexion</h1>
             <p className={`text-sm ${T.textMuted} mt-2`}>Entre ton email pour accéder à ton espace.</p>
           </div>
-
           <form onSubmit={handleLogin} className="flex flex-col w-full gap-4">
             <div className={`flex items-center px-4 py-4 rounded-xl border ${T.border} ${T.input} focus-within:ring-1 transition duration-200`}>
                 <Mail size={18} className={T.textMuted} />
@@ -432,7 +440,7 @@ export default function App() {
     );
   }
 
-  // 3. APP
+  // APP VIEW
   return (
     <div className={`h-screen w-full flex flex-col md:flex-row overflow-hidden ${T.bg} ${T.text} font-sans selection:${T.accentBg} selection:text-white`}>
       
@@ -461,7 +469,14 @@ export default function App() {
             <NavItem icon={<Users />} label="Squad & Chat" active={activeTab === 'social'} onClick={() => {setActiveTab('social'); setIsMobileMenuOpen(false)}} T={T} />
             <NavItem icon={<Bot />} label="Coach IA" active={activeTab === 'ai'} onClick={() => {setActiveTab('ai'); setIsMobileMenuOpen(false)}} T={T} badge="PRO" />
             
-            {/* ADMIN LINK (Visible seulement si email contient 'admin') */}
+            <div className={`my-4 border-t ${T.border}`}></div>
+            <p className={`px-4 text-[10px] font-bold uppercase ${T.textMuted} mb-2`}>Focus Zones</p>
+            
+            {/* ONGLETS RÉTABLIS ICI */}
+            <NavItem icon={<Briefcase />} label="Business" active={activeTab === 'business'} onClick={() => {setActiveTab('business'); setIsMobileMenuOpen(false)}} T={T} />
+            <NavItem icon={<GraduationCap />} label="Études" active={activeTab === 'school'} onClick={() => {setActiveTab('school'); setIsMobileMenuOpen(false)}} T={T} />
+
+            {/* ADMIN LINK */}
             {user?.email?.includes('admin') && (
                 <div className="mt-8 pt-4 border-t border-dashed border-neutral-800">
                     <p className="px-4 text-[10px] font-bold uppercase text-rose-500 mb-2">Zone Admin</p>
@@ -521,17 +536,13 @@ export default function App() {
                   <p className={T.textMuted}>Prêt à dominer la journée, <span className={`font-bold capitalize ${T.accentText}`}>{user?.name}</span> ?</p>
                 </div>
                 <div className="flex gap-2">
-                    {/* TABS DE NAVIGATION RAPIDE */}
-                    <button onClick={() => setActiveTab('school')} className={`px-4 py-2 rounded-xl border ${activeTab === 'school' ? 'bg-indigo-600 border-indigo-600 text-white' : `${T.border} ${T.textMuted} hover:${T.hover}`}`}>Études</button>
-                    <button onClick={() => setActiveTab('business')} className={`px-4 py-2 rounded-xl border ${activeTab === 'business' ? 'bg-emerald-600 border-emerald-600 text-white' : `${T.border} ${T.textMuted} hover:${T.hover}`}`}>Business</button>
-                    
                     <button onClick={() => setShowModal(true)} className={`px-4 py-2 rounded-xl ${T.accentBg} text-white font-bold shadow-lg flex items-center gap-2`}>
-                        <Plus size={18} />
+                        <Plus size={18} /> Nouvelle Tâche
                     </button>
                 </div>
               </div>
 
-              {/* LISTE DES TÂCHES FILTRÉES */}
+              {/* LISTE DES TÂCHES */}
               <div className={`rounded-2xl ${T.surface} border ${T.border} overflow-hidden shadow-xl`}>
                 <div className={`p-4 border-b ${T.border} flex justify-between items-center ${T.input} bg-opacity-50`}>
                   <h3 className="font-bold flex items-center gap-2"><Clock className={T.accentText} size={18} /> Timeline {activeTab !== 'dashboard' && `(${activeTab})`}</h3>
@@ -569,20 +580,22 @@ export default function App() {
             <div className="h-[calc(100vh-140px)] flex flex-col md:flex-row gap-6 animate-in fade-in">
               <div className={`w-full md:w-80 rounded-2xl border ${T.border} ${T.sidebar} p-4`}>
                 <div className="flex justify-between items-center mb-4"><h3 className="font-bold flex gap-2 items-center"><Users size={18}/> Ma Squad</h3><button onClick={() => setShowFriendModal(true)} className={`${T.accentText} hover:${T.accentLight} p-1 rounded transition`}><UserPlus size={18}/></button></div>
+                
+                {/* DEMANDES EN ATTENTE */}
+                {notifications.filter(n => n.type === 'friend_request').length > 0 && (
+                    <div className="mb-4 space-y-2">
+                        <p className={`text-[10px] font-bold uppercase ${T.textMuted}`}>En attente</p>
+                        {notifications.filter(n => n.type === 'friend_request').map(n => (
+                            <div key={n.id} className={`p-3 rounded-xl border ${T.border} bg-indigo-500/10 border-indigo-500/20`}>
+                                <p className="text-xs mb-2"><span className="font-bold text-indigo-400">{n.from_name}</span> veut te rejoindre.</p>
+                                <button onClick={() => handleAcceptFriend(n.from_user_id)} className="w-full py-1 bg-indigo-600 text-white rounded text-xs font-bold hover:bg-indigo-500">Accepter</button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 <div className="space-y-2">
                   {friends.length === 0 && <p className={`text-xs ${T.textMuted} italic text-center py-4`}>Pas encore d'amis acceptés.</p>}
-                  {/* AFFICHAGE DES DEMANDES EN ATTENTE */}
-                  {notifications.filter(n => n.type === 'friend_request').length > 0 && (
-                      <div className="mb-4">
-                          <p className="text-[10px] uppercase font-bold text-neutral-500 mb-2">En attente</p>
-                          {notifications.filter(n => n.type === 'friend_request').map(n => (
-                              <div key={n.id} className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 mb-2">
-                                  <p className="text-xs mb-2"><span className="font-bold text-indigo-400">{n.from_name}</span> veut te rejoindre.</p>
-                                  <button onClick={() => handleAcceptFriend(n.from_user_id)} className="w-full py-1 bg-indigo-600 text-white rounded text-xs font-bold hover:bg-indigo-500">Accepter</button>
-                              </div>
-                          ))}
-                      </div>
-                  )}
                   {friends.map(f => (
                     <div key={f.id} className={`p-3 rounded-xl border ${T.border} ${T.hover} flex items-center gap-3 cursor-pointer transition`}>
                       <div className="relative"><div className="w-10 h-10 rounded-full bg-neutral-700 flex items-center justify-center font-bold text-white">{f.name[0]}</div><div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-zinc-900 ${f.status === 'online' ? 'bg-emerald-500' : 'bg-zinc-500'}`}></div></div>
@@ -592,6 +605,7 @@ export default function App() {
                 </div>
               </div>
 
+              {/* CHAT */}
               <div className={`flex-1 rounded-2xl border ${T.border} ${T.sidebar} flex flex-col overflow-hidden`}>
                 <div className={`p-4 border-b ${T.border} flex justify-between items-center ${T.surface} bg-opacity-50`}>
                   <div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-full ${T.accentLight} ${T.accentText} flex items-center justify-center font-bold`}>#</div><div><p className="font-bold text-sm">Général</p><p className={`text-xs ${T.textMuted}`}>{friends.length} membres</p></div></div>
