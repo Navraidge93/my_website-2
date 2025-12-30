@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, Calendar, CheckCircle2, Brain, Trophy, Wifi, AlertCircle, Clock, 
-  Briefcase, GraduationCap, Dumbbell, Plus, Menu, X, Trash2, Save, ArrowRight
+  Briefcase, GraduationCap, Dumbbell, Plus, Menu, X, Trash2, ArrowRight
 } from 'lucide-react';
 
 // --- CONFIGURATION ---
 const API_URL = "https://backend-production-c3b5.up.railway.app";
 
-// --- DONNÉES PAR DÉFAUT (Pour ne pas démarrer à vide) ---
+// --- DONNÉES PAR DÉFAUT ---
 const INITIAL_TASKS = [
   { id: 1, time: '08:00', title: 'Révision UE 4.6 (Urgent)', category: 'school', done: false, date: new Date().toISOString().split('T')[0] },
   { id: 2, time: '13:30', title: 'Sourcing Vinted', category: 'business', done: false, date: new Date().toISOString().split('T')[0] },
@@ -15,13 +15,13 @@ const INITIAL_TASKS = [
 ];
 
 export default function App() {
-  // --- ÉTATS (MÉMOIRE DU SITE) ---
+  // --- ÉTATS ---
   const [serverStatus, setServerStatus] = useState('checking');
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
   
-  // Données persistantes
+  // Persistance
   const [tasks, setTasks] = useState(() => {
     const saved = localStorage.getItem('commando_tasks');
     return saved ? JSON.parse(saved) : INITIAL_TASKS;
@@ -31,7 +31,7 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
-  // Formulaire d'ajout
+  // Formulaire
   const [newTask, setNewTask] = useState({ title: '', time: '08:00', category: 'school' });
   const [newBrainItem, setNewBrainItem] = useState('');
 
@@ -96,7 +96,6 @@ export default function App() {
     let filtered = tasks;
     if (activeTab === 'business') filtered = tasks.filter(t => t.category === 'business');
     if (activeTab === 'school') filtered = tasks.filter(t => t.category === 'school');
-    // Tri par heure
     return filtered.sort((a, b) => a.time.localeCompare(b.time));
   };
 
@@ -110,12 +109,13 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans flex flex-col md:flex-row overflow-hidden relative">
+    // FIX: Utilisation de h-screen et w-full pour verrouiller la fenêtre sur PC
+    <div className="h-screen w-full bg-slate-950 text-slate-200 font-sans flex flex-col md:flex-row overflow-hidden relative">
       
       {/* --- MODAL AJOUT TÂCHE --- */}
       {showModal && (
-        <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl p-6 shadow-2xl">
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl p-6 shadow-2xl animate-in fade-in zoom-in duration-200">
             <h3 className="text-xl font-bold text-white mb-4">Nouvelle Mission</h3>
             <form onSubmit={addTask} className="space-y-4">
               <div>
@@ -162,8 +162,8 @@ export default function App() {
         </div>
       )}
 
-      {/* --- HEADER MOBILE --- */}
-      <div className="md:hidden bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center z-50">
+      {/* --- HEADER MOBILE (Visible uniquement sur mobile) --- */}
+      <div className="md:hidden bg-slate-900 border-b border-slate-800 p-4 flex justify-between items-center z-50 shrink-0">
         <div className="font-bold text-white flex items-center gap-2">
           <LayoutDashboard className="text-emerald-500" size={20} />
           <span>COMMANDO</span>
@@ -173,9 +173,11 @@ export default function App() {
         </button>
       </div>
 
-      {/* --- SIDEBAR --- */}
+      {/* --- SIDEBAR (Barre latérale) --- */}
+      {/* FIX: Ajout de 'shrink-0' pour empêcher l'écrasement sur PC */}
       <aside className={`
-        fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 border-r border-slate-800 transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:flex flex-col
+        fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 border-r border-slate-800 transform transition-transform duration-300 ease-in-out 
+        md:relative md:translate-x-0 md:flex md:flex-col shrink-0
         ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="p-6 hidden md:block">
@@ -183,17 +185,19 @@ export default function App() {
             <LayoutDashboard className="text-emerald-500" />
             <span>COMMANDO</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-1 uppercase tracking-wider font-bold">Planning OS v3.0</p>
+          <p className="text-xs text-slate-500 mt-1 uppercase tracking-wider font-bold">Planning OS v3.1</p>
         </div>
 
-        <nav className="flex-1 px-4 space-y-2 mt-20 md:mt-0">
+        {/* Navigation */}
+        <nav className="flex-1 px-4 space-y-2 mt-20 md:mt-0 overflow-y-auto">
           <SidebarItem icon={<Calendar />} label="Planning" active={activeTab === 'dashboard'} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false)}} />
           <SidebarItem icon={<Briefcase />} label="Business Focus" active={activeTab === 'business'} onClick={() => {setActiveTab('business'); setIsMobileMenuOpen(false)}} />
           <SidebarItem icon={<GraduationCap />} label="IFSI Focus" active={activeTab === 'school'} onClick={() => {setActiveTab('school'); setIsMobileMenuOpen(false)}} />
           <SidebarItem icon={<Brain />} label="Brain Dump" active={activeTab === 'brain'} onClick={() => {setActiveTab('brain'); setIsMobileMenuOpen(false)}} />
         </nav>
 
-        <div className="p-4 border-t border-slate-800">
+        {/* Footer Sidebar */}
+        <div className="p-4 border-t border-slate-800 shrink-0">
           <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono border transition-colors ${
             serverStatus === 'online' ? 'bg-emerald-950/30 border-emerald-900 text-emerald-500' : 'bg-slate-800 border-slate-700 text-slate-500'
           }`}>
@@ -203,10 +207,11 @@ export default function App() {
         </div>
       </aside>
 
-      {/* --- MAIN CONTENT --- */}
-      <main className="flex-1 overflow-y-auto h-[calc(100vh-60px)] md:h-screen bg-slate-950">
+      {/* --- MAIN CONTENT (Contenu Principal) --- */}
+      {/* FIX: h-full pour prendre toute la hauteur restante */}
+      <main className="flex-1 bg-slate-950 relative overflow-hidden flex flex-col h-full">
         
-        <div className="max-w-6xl mx-auto p-4 md:p-8 pb-32">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 pb-32">
           
           {/* HEADER SECTION */}
           <div className="mb-8 flex flex-col md:flex-row justify-between md:items-end gap-4">
@@ -235,16 +240,16 @@ export default function App() {
 
           {/* VUE BRAIN DUMP */}
           {activeTab === 'brain' ? (
-            <div className="space-y-6">
+            <div className="space-y-6 max-w-3xl mx-auto">
               <form onSubmit={addBrainItem} className="flex gap-2">
                 <input 
                   type="text" 
                   value={newBrainItem}
                   onChange={e => setNewBrainItem(e.target.value)}
                   placeholder="Une idée ? Une peur ? Une tâche en vrac ? Écris-la..."
-                  className="flex-1 bg-slate-900 border border-slate-800 rounded-xl p-4 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
+                  className="flex-1 bg-slate-900 border border-slate-800 rounded-xl p-4 text-white focus:ring-2 focus:ring-indigo-500 outline-none shadow-lg"
                 />
-                <button type="submit" className="bg-indigo-600 text-white p-4 rounded-xl hover:bg-indigo-500 transition">
+                <button type="submit" className="bg-indigo-600 text-white p-4 rounded-xl hover:bg-indigo-500 transition shadow-lg">
                   <ArrowRight />
                 </button>
               </form>
@@ -252,9 +257,9 @@ export default function App() {
               <div className="grid gap-3">
                 {brainDump.length === 0 && <div className="text-center text-slate-600 py-12">Ton esprit est vide (pour l'instant).</div>}
                 {brainDump.map(item => (
-                  <div key={item.id} className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex justify-between items-center group hover:border-indigo-500/30 transition">
+                  <div key={item.id} className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex justify-between items-center group hover:border-indigo-500/30 transition shadow-sm">
                     <span className="text-slate-300">{item.text}</span>
-                    <button onClick={() => deleteBrainItem(item.id)} className="text-slate-600 hover:text-rose-500 transition p-2">
+                    <button onClick={() => deleteBrainItem(item.id)} className="text-slate-600 hover:text-rose-500 transition p-2 opacity-50 group-hover:opacity-100">
                       <Trash2 size={18} />
                     </button>
                   </div>
@@ -262,10 +267,10 @@ export default function App() {
               </div>
             </div>
           ) : (
-            /* VUE PLANNING (Dashboard, Business, School) */
-            <>
+            /* VUE PLANNING */
+            <div className="space-y-8">
               {/* KPI */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <KpiCard title="Avancement" value={`${getFilteredTasks().filter(t => t.done).length}/${getFilteredTasks().length}`} icon={<CheckCircle2 className="text-emerald-400" />} />
                 <KpiCard title="Prochaine Deadline" value="07 JAN" sub="Dossier UE 4.6" icon={<AlertCircle className="text-rose-400" />} />
                 <KpiCard title="Mode Actuel" value={activeTab.toUpperCase()} sub="Full Focus" icon={<Trophy className="text-amber-400" />} />
@@ -282,7 +287,11 @@ export default function App() {
 
                 <div className="divide-y divide-slate-800/50">
                   {getFilteredTasks().length === 0 && (
-                    <div className="p-8 text-center text-slate-500">Aucune tâche prévue ici. Ajoutes-en une !</div>
+                    <div className="p-12 text-center text-slate-500 italic">
+                      Aucune tâche prévue pour le moment.
+                      <br/>
+                      <span className="text-sm not-italic text-slate-600">Clique sur "Ajouter Tâche" pour commencer.</span>
+                    </div>
                   )}
                   
                   {getFilteredTasks().map((task) => (
@@ -307,7 +316,7 @@ export default function App() {
                       </div>
 
                       <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded border flex items-center gap-1.5 shrink-0 ${getCategoryColor(task.category)}`}>
-                        <span className="hidden sm:inline">{task.category}</span>
+                        <span className="hidden sm:inline">{task.category === 'other' ? 'AUTRE' : task.category === 'school' ? 'IFSI' : task.category === 'business' ? 'BIZ' : 'SPORT'}</span>
                       </span>
                       
                       <button onClick={() => deleteTask(task.id)} className="text-slate-600 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition p-2">
@@ -317,7 +326,7 @@ export default function App() {
                   ))}
                 </div>
               </div>
-            </>
+            </div>
           )}
 
         </div>
