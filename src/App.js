@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Calendar, CheckCircle2, Brain, Trophy, Wifi, AlertCircle, Clock, 
   Briefcase, GraduationCap, Dumbbell, Plus, Menu, X, Trash2, ArrowRight, 
   Users, Send, Mail, Lock, Share2, Key, Sun, Moon, LogOut,
-  Maximize2, Minimize2, ArrowLeft, Bot, UserPlus, Fingerprint, Bell
+  Maximize2, Minimize2, ArrowLeft, Bot, UserPlus, Fingerprint, Bell, ShieldCheck, User
 } from 'lucide-react';
 
 // --- CONFIGURATION ---
@@ -44,19 +44,22 @@ export default function App() {
   const [view, setView] = useState('landing'); 
   const [serverStatus, setServerStatus] = useState('checking');
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [loading, setLoading] = useState(false); // État de chargement
+  const [loading, setLoading] = useState(false);
   
   // App States
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showFriendModal, setShowFriendModal] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   
   // Data
   const [tasks, setTasks] = useState([]);
   const [friends, setFriends] = useState([]);
   const [messages, setMessages] = useState([]);
-  const [aiMessages, setAiMessages] = useState([{ id: 1, sender: "Coach IA", text: "Prêt à optimiser ton temps ?", isMe: false }]);
+  const [notifications, setNotifications] = useState([]);
+  const [aiMessages, setAiMessages] = useState([{ id: 1, sender: "Coach IA", text: "Je suis opérationnel. Donne-moi tes objectifs.", isMe: false }]);
+  const [isAiTyping, setIsAiTyping] = useState(false); // Nouvel état pour l'IA
   
   // Inputs
   const [email, setEmail] = useState('');
@@ -89,6 +92,7 @@ export default function App() {
             fetchMessages();
             fetchFriends(user.id);
         }
+        fetchNotifications(user.id);
       }, 5000);
     }
     return () => clearInterval(interval);
@@ -98,6 +102,7 @@ export default function App() {
     fetchTasks(userId);
     fetchFriends(userId);
     fetchMessages();
+    fetchNotifications(userId);
   };
 
   // --- API CALLS ---
@@ -129,6 +134,16 @@ export default function App() {
     } catch (err) { console.error("Erreur friends", err); }
   };
 
+  const fetchNotifications = async (userId) => {
+    try {
+        const res = await fetch(`${API_URL}/api/social/notifications?userId=${userId}`);
+        if(res.ok) {
+            const data = await res.json();
+            setNotifications(data);
+        }
+    } catch (err) { console.error("Erreur notifs", err); }
+  };
+
   const fetchMessages = async () => {
     try {
       const res = await fetch(`${API_URL}/api/social/messages`);
@@ -139,7 +154,8 @@ export default function App() {
           sender: msg.sender_name,
           text: msg.content,
           time: new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-          isMe: msg.sender_id === user.id
+          // Correction comparaison ID (Int vs String)
+          isMe: String(msg.sender_id) === String(user.id)
         }));
         setMessages(formatted);
       }
@@ -148,7 +164,6 @@ export default function App() {
 
   // --- ACTIONS ---
 
-  // LOGIN SIMPLIFIÉ (Correction Bug #1)
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!email) return;
@@ -178,12 +193,10 @@ export default function App() {
     }
   };
 
-  // AJOUT TÂCHE
   const handleAddTask = async (e) => {
     e.preventDefault();
     if (!newTask.title) return;
     
-    // Optimistic
     const tempId = Date.now();
     const tempTask = { ...newTask, id: tempId, done: false, isTemp: true };
     setTasks(prev => [...prev, tempTask]);
@@ -196,22 +209,15 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...newTask, userId: user.id })
       });
-      if (res.ok) {
-          fetchTasks(user.id); // Recharger pour avoir le bon ID
-      }
+      if (res.ok) fetchTasks(user.id);
     } catch (err) { console.error(err); }
   };
 
-  // COCHER TÂCHE (Correction Bug #2)
   const toggleTask = async (taskId) => {
-    // On met à jour l'interface tout de suite
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done: !t.done } : t));
-    
     try {
       await fetch(`${API_URL}/api/tasks/${taskId}/toggle`, { method: 'PUT' });
     } catch (err) {
-      console.error("Erreur toggle", err);
-      // Si erreur, on annule le changement visuel
       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done: !t.done } : t));
     }
   };
@@ -223,15 +229,10 @@ export default function App() {
     } catch (err) { console.error("Erreur delete", err); }
   };
 
-  // AJOUT AMI (Correction Bug #3)
   const handleAddFriend = async (e) => {
     e.preventDefault();
     if (!friendEmail) return;
-
-    if (friendEmail === user.email) {
-        alert("Tu ne peux pas t'ajouter toi-même ! Crée un 2ème compte pour tester.");
-        return;
-    }
+    if (friendEmail === user.email) { alert("Tu ne peux pas t'ajouter toi-même !"); return; }
 
     try {
       const res = await fetch(`${API_URL}/api/social/friends/request`, {
@@ -239,17 +240,31 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: user.id, friendEmail })
       });
-      
       const data = await res.json();
       if (data.success) {
-        alert("Demande envoyée ! L'autre personne doit l'accepter (bientôt dispo). Pour l'instant, c'est auto-accepté pour le test.");
+        alert("Demande envoyée !");
         setShowFriendModal(false);
         setFriendEmail('');
-        fetchFriends(user.id);
       } else {
         alert("Erreur: " + data.error);
       }
     } catch (err) { alert("Erreur connexion"); }
+  };
+
+  // NOUVEAU: Accepter ami depuis les notifications/squad
+  const handleAcceptFriend = async (friendId) => {
+      try {
+          const res = await fetch(`${API_URL}/api/social/friends/accept`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ userId: user.id, friendId })
+          });
+          if(res.ok) {
+              fetchFriends(user.id);
+              fetchNotifications(user.id);
+              alert("Ami accepté !");
+          }
+      } catch(err) { alert("Erreur lors de l'acceptation"); }
   };
 
   const handleSendMessage = async (e) => {
@@ -265,6 +280,36 @@ export default function App() {
       });
       fetchMessages(); 
     } catch (err) { console.error(err); }
+  };
+
+  const sendAiMessage = (e) => {
+    e.preventDefault();
+    if (!newAiMessage.trim()) return;
+    const userMsg = { id: Date.now(), sender: "Moi", text: newAiMessage, isMe: true };
+    setAiMessages(prev => [...prev, userMsg]);
+    setNewAiMessage('');
+    setIsAiTyping(true); // Animation
+    
+    setTimeout(() => {
+        let response = "Je n'ai pas compris. Peux-tu reformuler ?";
+        const lowerMsg = userMsg.text.toLowerCase();
+        
+        // Logique IA simple mais efficace
+        if (lowerMsg.includes('planning') || lowerMsg.includes('tache') || lowerMsg.includes('quoi faire')) {
+            const schoolTasks = tasks.filter(t => t.category === 'school' && !t.done).length;
+            const bizTasks = tasks.filter(t => t.category === 'business' && !t.done).length;
+            response = `Analyse du jour : Tu as ${schoolTasks} tâches scolaires et ${bizTasks} tâches business en attente. Priorité à l'étude.`;
+        } else if (lowerMsg.includes('fatigué') || lowerMsg.includes('pause')) {
+            response = "La performance nécessite de la récupération. Prends 15min, bois de l'eau, et reviens.";
+        } else if (lowerMsg.includes('business') || lowerMsg.includes('argent')) {
+            response = "Le succès aime la vitesse. Concentre-toi sur les tâches à haute valeur ajoutée.";
+        } else if (lowerMsg.includes('bonjour') || lowerMsg.includes('salut')) {
+            response = `Salut ${user.name}. Prêt à conquérir la journée ?`;
+        }
+        
+      setAiMessages(prev => [...prev, { id: Date.now()+1, sender: "Coach IA", text: response, isMe: false }]);
+      setIsAiTyping(false);
+    }, 1500);
   };
 
   const handleLogout = () => {
@@ -288,6 +333,51 @@ export default function App() {
   };
 
   const T = THEMES[theme];
+
+  // --- RENDU ADMIN ---
+  const renderAdminPanel = () => (
+      <div className="space-y-6 animate-in fade-in">
+          <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                  <ShieldCheck className="text-rose-500" /> Interface Administrateur
+              </h2>
+              <span className="px-3 py-1 bg-rose-500/20 text-rose-500 rounded-full text-xs font-bold uppercase">Accès Restreint</span>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className={`p-6 rounded-2xl ${T.surface} border border-rose-500/30`}>
+                  <h3 className="font-bold mb-4 flex items-center gap-2"><Users size={18}/> Utilisateurs Actifs (Simulation)</h3>
+                  <div className="space-y-3">
+                      {[user, {name: "Thomas", email: "thomas@biz.com", id: 2}, {name: "Sarah", email: "sarah@ifsi.com", id: 3}].map(u => (
+                          u && <div key={u.id} className="flex justify-between items-center p-3 rounded-xl bg-black/20">
+                              <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-full bg-rose-900 flex items-center justify-center font-bold text-rose-200">{u.name[0]}</div>
+                                  <div>
+                                      <p className="text-sm font-bold text-white">{u.name}</p>
+                                      <p className="text-xs text-neutral-500">{u.email}</p>
+                                  </div>
+                              </div>
+                              <span className="text-xs text-emerald-500">Actif</span>
+                          </div>
+                      ))}
+                  </div>
+              </div>
+              <div className={`p-6 rounded-2xl ${T.surface} border border-rose-500/30`}>
+                  <h3 className="font-bold mb-4 flex items-center gap-2"><Activity size={18}/> Statistiques Globales</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 bg-black/20 rounded-xl">
+                          <p className="text-xs text-neutral-500 uppercase">Messages Totaux</p>
+                          <p className="text-2xl font-bold text-white">{messages.length + 142}</p>
+                      </div>
+                      <div className="p-4 bg-black/20 rounded-xl">
+                          <p className="text-xs text-neutral-500 uppercase">Tâches Créées</p>
+                          <p className="text-2xl font-bold text-white">{tasks.length + 89}</p>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </div>
+  );
 
   // ================= VUES =================
 
@@ -314,7 +404,7 @@ export default function App() {
       );
   }
 
-  // 2. LOGIN (Simplifié)
+  // 2. LOGIN
   if (view === 'login') {
     return (
       <div className={`min-h-screen flex items-center justify-center p-4 ${T.bg} ${T.text}`}>
@@ -360,12 +450,26 @@ export default function App() {
               <p className="text-sm font-bold truncate capitalize">{user?.name}</p>
               <div className="flex items-center gap-1.5 mt-0.5"><span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span className={`text-[10px] ${T.textMuted}`}>En ligne</span></div>
             </div>
+            <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 hover:bg-white/5 rounded-lg transition">
+                <Bell size={18} className={T.textMuted} />
+                {notifications.length > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-ping"></span>}
+            </button>
           </div>
 
           <nav className="space-y-1">
             <NavItem icon={<Calendar />} label="Planning" active={activeTab === 'dashboard'} onClick={() => {setActiveTab('dashboard'); setIsMobileMenuOpen(false)}} T={T} />
             <NavItem icon={<Users />} label="Squad & Chat" active={activeTab === 'social'} onClick={() => {setActiveTab('social'); setIsMobileMenuOpen(false)}} T={T} />
             <NavItem icon={<Bot />} label="Coach IA" active={activeTab === 'ai'} onClick={() => {setActiveTab('ai'); setIsMobileMenuOpen(false)}} T={T} badge="PRO" />
+            
+            {/* ADMIN LINK (Visible seulement si email contient 'admin') */}
+            {user?.email?.includes('admin') && (
+                <div className="mt-8 pt-4 border-t border-dashed border-neutral-800">
+                    <p className="px-4 text-[10px] font-bold uppercase text-rose-500 mb-2">Zone Admin</p>
+                    <button onClick={() => setActiveTab('admin')} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-rose-400 hover:bg-rose-500/10 transition-all">
+                        <ShieldCheck size={18} /> Administration
+                    </button>
+                </div>
+            )}
           </nav>
         </div>
         <div className={`mt-auto p-4 border-t ${T.border} flex items-center justify-between`}>
@@ -383,29 +487,63 @@ export default function App() {
           <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}><Menu /></button>
         </header>
 
+        {/* NOTIFICATIONS PANEL */}
+        {showNotifications && (
+            <div className={`absolute top-4 right-4 w-80 z-50 p-4 rounded-2xl border ${T.border} ${T.sidebar} shadow-2xl animate-in slide-in-from-top-2`}>
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="font-bold">Notifications</h3>
+                    <button onClick={() => setShowNotifications(false)}><X size={16} /></button>
+                </div>
+                <div className="space-y-2">
+                    {notifications.length === 0 && <p className={`text-xs ${T.textMuted}`}>Rien à signaler.</p>}
+                    {notifications.map(n => (
+                        <div key={n.id} className={`p-3 rounded-xl ${T.input} text-sm flex flex-col gap-2`}>
+                            <div><span className="font-bold">{n.from_name}</span> {n.content}</div>
+                            {n.type === 'friend_request' && (
+                                <button onClick={() => handleAcceptFriend(n.from_user_id)} className={`text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-bold w-full`}>Accepter la demande</button>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
+
         <div className="flex-1 overflow-y-auto p-4 md:p-8 pb-32 scroll-smooth">
           
-          {/* DASHBOARD */}
-          {activeTab === 'dashboard' && (
+          {/* DASHBOARD & ZONES */}
+          {(activeTab === 'dashboard' || activeTab === 'business' || activeTab === 'school') && (
             <div className="max-w-5xl mx-auto animate-in fade-in duration-500">
               <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-8">
                 <div>
-                  <h2 className="text-3xl font-bold mb-1 text-white">Tableau de Bord</h2>
+                  <h2 className="text-3xl font-bold mb-1 text-white">
+                    {activeTab === 'dashboard' ? 'Tableau de Bord' : activeTab === 'business' ? 'QG Business' : 'QG Études'}
+                  </h2>
                   <p className={T.textMuted}>Prêt à dominer la journée, <span className={`font-bold capitalize ${T.accentText}`}>{user?.name}</span> ?</p>
                 </div>
-                <button onClick={() => setShowModal(true)} className={`px-6 py-3 rounded-xl ${T.accentBg} text-white font-bold shadow-lg flex items-center gap-2 transition active:scale-95`}>
-                  <Plus size={20} /> Ajouter
-                </button>
+                <div className="flex gap-2">
+                    {/* TABS DE NAVIGATION RAPIDE */}
+                    <button onClick={() => setActiveTab('school')} className={`px-4 py-2 rounded-xl border ${activeTab === 'school' ? 'bg-indigo-600 border-indigo-600 text-white' : `${T.border} ${T.textMuted} hover:${T.hover}`}`}>Études</button>
+                    <button onClick={() => setActiveTab('business')} className={`px-4 py-2 rounded-xl border ${activeTab === 'business' ? 'bg-emerald-600 border-emerald-600 text-white' : `${T.border} ${T.textMuted} hover:${T.hover}`}`}>Business</button>
+                    
+                    <button onClick={() => setShowModal(true)} className={`px-4 py-2 rounded-xl ${T.accentBg} text-white font-bold shadow-lg flex items-center gap-2`}>
+                        <Plus size={18} />
+                    </button>
+                </div>
               </div>
 
+              {/* LISTE DES TÂCHES FILTRÉES */}
               <div className={`rounded-2xl ${T.surface} border ${T.border} overflow-hidden shadow-xl`}>
                 <div className={`p-4 border-b ${T.border} flex justify-between items-center ${T.input} bg-opacity-50`}>
-                  <h3 className="font-bold flex items-center gap-2"><Clock className={T.accentText} size={18} /> Timeline</h3>
+                  <h3 className="font-bold flex items-center gap-2"><Clock className={T.accentText} size={18} /> Timeline {activeTab !== 'dashboard' && `(${activeTab})`}</h3>
                   <button onClick={toggleFullscreen} className={T.textMuted}>{isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>
                 </div>
                 <div className={`divide-y ${theme === 'dark' ? 'divide-neutral-800' : 'divide-slate-200'}`}>
-                  {tasks.length === 0 && <div className={`p-12 text-center ${T.textMuted} italic`}>Aucune mission. Ajoute quelque chose !</div>}
-                  {tasks.map(task => (
+                  {tasks.filter(t => activeTab === 'dashboard' || t.category === activeTab).length === 0 && (
+                      <div className={`p-12 text-center ${T.textMuted} italic`}>
+                          Aucune mission {activeTab !== 'dashboard' ? 'dans cette catégorie' : ''}. Ajoute quelque chose !
+                      </div>
+                  )}
+                  {tasks.filter(t => activeTab === 'dashboard' || t.category === activeTab).map(task => (
                     <div key={task.id} className={`p-5 flex items-center gap-4 ${T.hover} transition group`}>
                       <span className={`font-mono text-sm font-bold w-12 ${T.textMuted} text-right`}>{task.time}</span>
                       <button 
@@ -432,9 +570,21 @@ export default function App() {
               <div className={`w-full md:w-80 rounded-2xl border ${T.border} ${T.sidebar} p-4`}>
                 <div className="flex justify-between items-center mb-4"><h3 className="font-bold flex gap-2 items-center"><Users size={18}/> Ma Squad</h3><button onClick={() => setShowFriendModal(true)} className={`${T.accentText} hover:${T.accentLight} p-1 rounded transition`}><UserPlus size={18}/></button></div>
                 <div className="space-y-2">
-                  {friends.length === 0 && <p className={`text-xs ${T.textMuted} italic text-center py-4`}>Invite des amis pour discuter.</p>}
+                  {friends.length === 0 && <p className={`text-xs ${T.textMuted} italic text-center py-4`}>Pas encore d'amis acceptés.</p>}
+                  {/* AFFICHAGE DES DEMANDES EN ATTENTE */}
+                  {notifications.filter(n => n.type === 'friend_request').length > 0 && (
+                      <div className="mb-4">
+                          <p className="text-[10px] uppercase font-bold text-neutral-500 mb-2">En attente</p>
+                          {notifications.filter(n => n.type === 'friend_request').map(n => (
+                              <div key={n.id} className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 mb-2">
+                                  <p className="text-xs mb-2"><span className="font-bold text-indigo-400">{n.from_name}</span> veut te rejoindre.</p>
+                                  <button onClick={() => handleAcceptFriend(n.from_user_id)} className="w-full py-1 bg-indigo-600 text-white rounded text-xs font-bold hover:bg-indigo-500">Accepter</button>
+                              </div>
+                          ))}
+                      </div>
+                  )}
                   {friends.map(f => (
-                    <div key={f.id} className={`p-3 rounded-xl border ${T.border} ${T.hover} flex items-center gap-3`}>
+                    <div key={f.id} className={`p-3 rounded-xl border ${T.border} ${T.hover} flex items-center gap-3 cursor-pointer transition`}>
                       <div className="relative"><div className="w-10 h-10 rounded-full bg-neutral-700 flex items-center justify-center font-bold text-white">{f.name[0]}</div><div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-zinc-900 ${f.status === 'online' ? 'bg-emerald-500' : 'bg-zinc-500'}`}></div></div>
                       <div className='overflow-hidden'><p className="text-sm font-bold truncate">{f.name}</p><p className={`text-xs ${T.textMuted} truncate`}>{f.email}</p></div>
                     </div>
@@ -465,6 +615,35 @@ export default function App() {
               </div>
             </div>
           )}
+
+          {/* TAB: AI */}
+          {activeTab === 'ai' && (
+            <div className="h-full flex flex-col max-w-3xl mx-auto animate-in slide-in-from-bottom-4">
+              <div className={`p-4 mb-4 rounded-xl border ${T.border} ${T.surface} flex items-center gap-3`}>
+                <div className={`p-2 ${T.accentLight} rounded-lg`}><Bot className={T.accentText} /></div>
+                <div><h3 className="font-bold text-sm">Coach Stratégique</h3><p className={`text-xs ${T.textMuted}`}>Optimisation tactique activée.</p></div>
+              </div>
+              <div className="flex-1 overflow-y-auto space-y-4 mb-4 pr-2">
+                {aiMessages.map(msg => (
+                  <div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[85%] rounded-2xl p-4 ${msg.isMe ? `${T.accentBg} text-white` : `${T.input} border ${T.border}`}`}>
+                      <p className="text-sm leading-relaxed">{msg.text}</p>
+                    </div>
+                  </div>
+                ))}
+                {isAiTyping && <div className={`text-xs ${T.textMuted} animate-pulse ml-4`}>Le coach écrit...</div>}
+                <div ref={aiEndRef} />
+              </div>
+              <form onSubmit={sendAiMessage} className={`p-2 border ${T.border} rounded-xl flex gap-2 ${T.surface} focus-within:ring-1 ${T.accentRing} transition`}>
+                <input value={newAiMessage} onChange={e => setNewAiMessage(e.target.value)} placeholder="Pose une question..." className={`flex-1 bg-transparent px-4 outline-none ${T.text}`} />
+                <button className={`p-3 rounded-lg ${T.accentBg} text-white hover:opacity-90 transition`}><Send size={18} /></button>
+              </form>
+            </div>
+          )}
+
+          {/* TAB: ADMIN (Visible uniquement si email admin) */}
+          {activeTab === 'admin' && renderAdminPanel()}
+
         </div>
       </main>
 
@@ -492,7 +671,7 @@ export default function App() {
         <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
           <div className={`${T.sidebar} border ${T.border} w-full max-w-sm rounded-2xl p-6 shadow-2xl`}>
             <h3 className="font-bold mb-4">Recruter un allié</h3>
-            <p className={`text-xs ${T.textMuted} mb-4`}>Entre l'email de ton ami. (Il doit avoir créé un compte !)</p>
+            <p className={`text-xs ${T.textMuted} mb-4`}>Entre l'email de ton ami.</p>
             <form onSubmit={handleAddFriend} className="flex gap-2">
               <input autoFocus value={friendEmail} onChange={e => setFriendEmail(e.target.value)} className={`flex-1 p-3 rounded-lg border ${T.border} ${T.input} outline-none`} placeholder="email@ami.com..." />
               <button className={`p-3 ${T.accentBg} text-white rounded-lg`}><Plus/></button>
