@@ -8,7 +8,7 @@ import {
 // --- CONFIGURATION ---
 const API_URL = "https://backend-production-c3b5.up.railway.app";
 
-// --- THÈMES ROBUSTES (Classes complètes pour Tailwind) ---
+// --- THÈMES ROBUSTES ---
 const THEMES = {
   dark: {
     bg: 'bg-black',
@@ -19,7 +19,7 @@ const THEMES = {
     textMuted: 'text-neutral-500',
     // Accent: Emerald (Vert Commando)
     accentBg: 'bg-emerald-600',
-    accentBgHover: 'hover:bg-emerald-500',
+    accentGradient: 'bg-gradient-to-r from-emerald-600 to-emerald-400',
     accentText: 'text-emerald-500',
     accentBorder: 'border-emerald-500',
     accentRing: 'focus:ring-emerald-500',
@@ -36,7 +36,7 @@ const THEMES = {
     textMuted: 'text-slate-500',
     // Accent: Indigo (Bleu Pro)
     accentBg: 'bg-indigo-600',
-    accentBgHover: 'hover:bg-indigo-500',
+    accentGradient: 'bg-gradient-to-r from-indigo-600 to-indigo-400',
     accentText: 'text-indigo-600',
     accentBorder: 'border-indigo-500',
     accentRing: 'focus:ring-indigo-500',
@@ -65,7 +65,7 @@ export default function App() {
   const [view, setView] = useState('login'); 
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState(['', '', '', '']);
-  const [serverStatus, setServerStatus] = useState('checking'); // checking, online, offline
+  const [serverStatus, setServerStatus] = useState('checking'); 
   
   // App States
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -80,7 +80,6 @@ export default function App() {
   const [newTask, setNewTask] = useState({ title: '', time: '08:00', category: 'school' });
 
   const scrollRef = useRef(null);
-  // Ref pour scroller le chat en bas automatiquement
   const messagesEndRef = useRef(null);
 
   // --- EFFETS ---
@@ -98,7 +97,6 @@ export default function App() {
     localStorage.setItem('v6_brain', JSON.stringify(brainDump));
   }, [tasks, brainDump]);
 
-  // Scroll automatique du chat
   useEffect(() => {
     if (activeTab === 'social' && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -158,13 +156,11 @@ export default function App() {
     setMessages([...messages, { id: Date.now(), sender: "Moi", text: planText, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}), isMe: true, isSystem: true }]);
   };
 
-  // Gestion robuste des inputs OTP
   const handleChangeOtp = (element, index) => {
     if (isNaN(element.value)) return false;
     const newOtp = [...otp];
     newOtp[index] = element.value;
     setOtp(newOtp);
-    // Focus next input
     if (element.value && element.nextSibling) {
       element.nextSibling.focus();
     }
@@ -182,26 +178,29 @@ export default function App() {
   if (view === 'login' || view === 'otp') {
     return (
       <div className={`min-h-screen flex items-center justify-center p-4 ${T.bg} ${T.text}`}>
-        <div className={`w-full max-w-md p-8 rounded-2xl border ${T.border} ${T.sidebar} shadow-2xl relative overflow-hidden`}>
+        <div className={`w-full max-w-sm p-8 rounded-3xl border ${T.border} ${T.sidebar} shadow-2xl relative overflow-hidden flex flex-col gap-6`}>
           
           {/* Status Bar */}
           <div className="absolute top-4 right-4 flex items-center gap-2">
              <div className={`w-2 h-2 rounded-full ${serverStatus === 'online' ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse'}`}></div>
           </div>
 
-          <div className="mb-8 text-center">
-            <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl ${T.accentBg} flex items-center justify-center shadow-lg`}>
-              <LayoutDashboard className="text-white" size={32} />
+          {/* Header Compacté */}
+          <div className="text-center flex flex-col items-center gap-3">
+            <div className={`w-14 h-14 rounded-2xl ${T.accentBg} flex items-center justify-center shadow-lg shadow-${T.accentText}/20`}>
+              <LayoutDashboard className="text-white" size={28} />
             </div>
-            <h1 className="text-2xl font-bold mb-2">Planning OS <span className={`${T.accentText}`}>V6</span></h1>
-            <p className={`text-sm ${T.textMuted}`}>Connexion sécurisée</p>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">Planning OS <span className={`${T.accentText}`}>V7</span></h1>
+              <p className={`text-xs font-medium ${T.textMuted}`}>Accès Membre Sécurisé</p>
+            </div>
           </div>
 
           {view === 'login' ? (
-            <form onSubmit={handleSendEmail} className="space-y-4">
+            <form onSubmit={handleSendEmail} className="flex flex-col gap-4">
               <div>
-                <label className={`text-xs font-bold uppercase ${T.textMuted} ml-1 mb-1 block`}>Email Professionnel</label>
-                <div className={`flex items-center px-4 py-3 rounded-xl border ${T.border} ${T.input} focus-within:ring-1 ${T.accentRing} transition`}>
+                <label className={`text-[10px] font-bold uppercase tracking-wider ${T.textMuted} mb-1.5 block ml-1`}>Email Professionnel</label>
+                <div className={`flex items-center px-4 py-3 rounded-xl border ${T.border} ${T.input} focus-within:ring-2 ${T.accentRing} focus-within:border-transparent transition duration-200`}>
                   <Mail size={18} className={T.textMuted} />
                   <input 
                     type="email" 
@@ -209,22 +208,24 @@ export default function App() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="nom@exemple.com" 
-                    className="flex-1 bg-transparent border-none outline-none ml-3 text-sm"
+                    className="flex-1 bg-transparent border-none outline-none ml-3 text-sm placeholder:text-neutral-600"
                   />
                 </div>
               </div>
-              <button className={`w-full py-3.5 rounded-xl font-bold text-white ${T.accentBg} ${T.accentBgHover} active:scale-[0.98] transition shadow-lg flex items-center justify-center gap-2`}>
-                Recevoir mon code <ArrowRight size={18} />
+              
+              {/* Bouton Gradient & Spacing Réduit */}
+              <button className={`w-full py-3.5 rounded-xl font-bold text-white ${T.accentGradient} active:scale-[0.98] transition shadow-lg hover:shadow-xl flex items-center justify-center gap-2 mt-2`}>
+                Obtenir mon accès <ArrowRight size={18} />
               </button>
             </form>
           ) : (
-            <form onSubmit={handleVerifyOtp} className="space-y-6">
+            <form onSubmit={handleVerifyOtp} className="flex flex-col gap-6">
               <div className="text-center">
-                <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full ${T.accentLight} ${T.accentText} mb-4`}>
-                  <Key size={24} />
+                <div className={`inline-flex items-center justify-center w-10 h-10 rounded-full ${T.accentLight} ${T.accentText} mb-3`}>
+                  <Key size={20} />
                 </div>
-                <h3 className="font-bold text-lg">Code de sécurité</h3>
-                <p className={`text-xs ${T.textMuted} mt-1`}>Envoyé à <span className="font-bold">{email}</span></p>
+                <h3 className="font-bold text-base">Code de sécurité</h3>
+                <p className={`text-xs ${T.textMuted} mt-1`}>Envoyé à <span className="font-bold text-white">{email}</span></p>
               </div>
 
               <div className="flex justify-center gap-3">
@@ -233,7 +234,7 @@ export default function App() {
                     key={index}
                     type="text"
                     maxLength="1"
-                    className={`w-12 h-14 text-center text-xl font-bold rounded-lg border ${T.border} ${T.input} focus:ring-2 ${T.accentRing} outline-none transition`}
+                    className={`w-12 h-14 text-center text-xl font-bold rounded-xl border ${T.border} ${T.input} focus:ring-2 ${T.accentRing} outline-none transition duration-200`}
                     value={data}
                     onChange={(e) => handleChangeOtp(e.target, index)}
                     onKeyDown={(e) => handleKeyDownOtp(e, index)}
@@ -242,10 +243,10 @@ export default function App() {
                 ))}
               </div>
 
-              <button className={`w-full py-3.5 rounded-xl font-bold text-white ${T.accentBg} ${T.accentBgHover} active:scale-[0.98] transition shadow-lg`}>
+              <button className={`w-full py-3.5 rounded-xl font-bold text-white ${T.accentGradient} active:scale-[0.98] transition shadow-lg hover:shadow-xl mt-2`}>
                 Valider & Entrer
               </button>
-              <button type="button" onClick={() => setView('login')} className={`w-full text-xs ${T.textMuted} hover:underline transition`}>
+              <button type="button" onClick={() => setView('login')} className={`w-full text-xs ${T.textMuted} hover:text-white transition`}>
                 Changer d'email
               </button>
             </form>
