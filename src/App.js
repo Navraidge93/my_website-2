@@ -19,7 +19,7 @@ const THEMES = {
     textMuted: 'text-neutral-500',
     // Accent: Emerald (Vert Commando)
     accentBg: 'bg-emerald-600',
-    accentGradient: 'bg-gradient-to-r from-emerald-600 to-emerald-400',
+    accentGradient: 'bg-gradient-to-r from-emerald-600 to-emerald-500',
     accentText: 'text-emerald-500',
     accentBorder: 'border-emerald-500',
     accentRing: 'focus:ring-emerald-500',
@@ -36,7 +36,7 @@ const THEMES = {
     textMuted: 'text-slate-500',
     // Accent: Indigo (Bleu Pro)
     accentBg: 'bg-indigo-600',
-    accentGradient: 'bg-gradient-to-r from-indigo-600 to-indigo-400',
+    accentGradient: 'bg-gradient-to-r from-indigo-600 to-indigo-500',
     accentText: 'text-indigo-600',
     accentBorder: 'border-indigo-500',
     accentRing: 'focus:ring-indigo-500',
@@ -178,54 +178,56 @@ export default function App() {
   if (view === 'login' || view === 'otp') {
     return (
       <div className={`min-h-screen flex items-center justify-center p-4 ${T.bg} ${T.text}`}>
-        <div className={`w-full max-w-sm p-8 rounded-3xl border ${T.border} ${T.sidebar} shadow-2xl relative overflow-hidden flex flex-col gap-6`}>
+        <div className={`w-full max-w-sm p-8 rounded-3xl border ${T.border} ${T.sidebar} shadow-2xl relative overflow-hidden flex flex-col justify-center gap-6 min-h-[400px]`}>
           
           {/* Status Bar */}
           <div className="absolute top-4 right-4 flex items-center gap-2">
              <div className={`w-2 h-2 rounded-full ${serverStatus === 'online' ? 'bg-emerald-500' : 'bg-rose-500 animate-pulse'}`}></div>
           </div>
 
-          {/* Header Compacté */}
-          <div className="text-center flex flex-col items-center gap-3">
-            <div className={`w-14 h-14 rounded-2xl ${T.accentBg} flex items-center justify-center shadow-lg shadow-${T.accentText}/20`}>
-              <LayoutDashboard className="text-white" size={28} />
+          {/* Header Compacté avec moins d'espace */}
+          <div className="text-center flex flex-col items-center gap-4 mb-2">
+            <div className={`w-16 h-16 rounded-2xl ${T.accentBg} flex items-center justify-center shadow-xl shadow-${T.accentText}/30 transform hover:scale-105 transition duration-500`}>
+              <LayoutDashboard className="text-white" size={32} />
             </div>
             <div>
-              <h1 className="text-xl font-bold tracking-tight">Planning OS <span className={`${T.accentText}`}>V7</span></h1>
-              <p className={`text-xs font-medium ${T.textMuted}`}>Accès Membre Sécurisé</p>
+              <h1 className="text-2xl font-extrabold tracking-tight">Planning OS <span className={`${T.accentText}`}>V7</span></h1>
+              <p className={`text-xs font-medium uppercase tracking-widest ${T.textMuted} mt-1`}>Accès Membre</p>
             </div>
           </div>
 
           {view === 'login' ? (
-            <form onSubmit={handleSendEmail} className="flex flex-col gap-4">
-              <div>
-                <label className={`text-[10px] font-bold uppercase tracking-wider ${T.textMuted} mb-1.5 block ml-1`}>Email Professionnel</label>
-                <div className={`flex items-center px-4 py-3 rounded-xl border ${T.border} ${T.input} focus-within:ring-2 ${T.accentRing} focus-within:border-transparent transition duration-200`}>
-                  <Mail size={18} className={T.textMuted} />
+            <form onSubmit={handleSendEmail} className="flex flex-col w-full gap-4">
+              <div className="space-y-1.5">
+                <label className={`text-[10px] font-bold uppercase tracking-wider ${T.textMuted} ml-1`}>Email Professionnel</label>
+                <div className={`flex items-center px-4 py-3.5 rounded-xl border ${T.border} ${T.input} focus-within:ring-2 ${T.accentRing} focus-within:border-transparent transition duration-200 group`}>
+                  <Mail size={18} className={`${T.textMuted} group-focus-within:${T.accentText} transition-colors`} />
                   <input 
                     type="email" 
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="nom@exemple.com" 
-                    className="flex-1 bg-transparent border-none outline-none ml-3 text-sm placeholder:text-neutral-600"
+                    className="flex-1 bg-transparent border-none outline-none ml-3 text-sm placeholder:text-neutral-600 font-medium"
                   />
                 </div>
               </div>
               
-              {/* Bouton Gradient & Spacing Réduit */}
-              <button className={`w-full py-3.5 rounded-xl font-bold text-white ${T.accentGradient} active:scale-[0.98] transition shadow-lg hover:shadow-xl flex items-center justify-center gap-2 mt-2`}>
+              {/* Bouton Gradient & Spacing Réduit - Amélioré */}
+              <button className={`w-full py-4 rounded-xl font-bold text-white ${T.accentGradient} hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 shadow-lg hover:shadow-${T.accentText}/50 flex items-center justify-center gap-2 mt-1 text-sm tracking-wide uppercase`}>
                 Obtenir mon accès <ArrowRight size={18} />
               </button>
             </form>
           ) : (
-            <form onSubmit={handleVerifyOtp} className="flex flex-col gap-6">
-              <div className="text-center">
-                <div className={`inline-flex items-center justify-center w-10 h-10 rounded-full ${T.accentLight} ${T.accentText} mb-3`}>
-                  <Key size={20} />
+            <form onSubmit={handleVerifyOtp} className="flex flex-col w-full gap-6">
+              <div className="text-center space-y-2">
+                <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full ${T.accentLight} ${T.accentText} mb-2`}>
+                  <Key size={24} />
                 </div>
-                <h3 className="font-bold text-base">Code de sécurité</h3>
-                <p className={`text-xs ${T.textMuted} mt-1`}>Envoyé à <span className="font-bold text-white">{email}</span></p>
+                <div>
+                  <h3 className="font-bold text-lg">Code de sécurité</h3>
+                  <p className={`text-xs ${T.textMuted}`}>Envoyé à <span className="font-bold text-white">{email}</span></p>
+                </div>
               </div>
 
               <div className="flex justify-center gap-3">
@@ -234,7 +236,7 @@ export default function App() {
                     key={index}
                     type="text"
                     maxLength="1"
-                    className={`w-12 h-14 text-center text-xl font-bold rounded-xl border ${T.border} ${T.input} focus:ring-2 ${T.accentRing} outline-none transition duration-200`}
+                    className={`w-12 h-14 text-center text-xl font-bold rounded-xl border ${T.border} ${T.input} focus:ring-2 ${T.accentRing} focus:-translate-y-1 outline-none transition-all duration-200`}
                     value={data}
                     onChange={(e) => handleChangeOtp(e.target, index)}
                     onKeyDown={(e) => handleKeyDownOtp(e, index)}
@@ -243,7 +245,7 @@ export default function App() {
                 ))}
               </div>
 
-              <button className={`w-full py-3.5 rounded-xl font-bold text-white ${T.accentGradient} active:scale-[0.98] transition shadow-lg hover:shadow-xl mt-2`}>
+              <button className={`w-full py-4 rounded-xl font-bold text-white ${T.accentGradient} hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 shadow-lg mt-2 text-sm tracking-wide uppercase`}>
                 Valider & Entrer
               </button>
               <button type="button" onClick={() => setView('login')} className={`w-full text-xs ${T.textMuted} hover:text-white transition`}>
