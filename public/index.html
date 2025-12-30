@@ -1,27 +1,46 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="dark">
   <head>
     <meta charset="utf-8" />
+    
+    <!-- Empêche le zoom sur mobile pour un effet "App Native" -->
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+    
+    <!-- Couleur de la barre de navigateur (Chrome/Android) -->
     <meta name="theme-color" content="#000000" />
-    <meta name="description" content="Planning OS - Plateforme de Productivité" />
+    
+    <!-- --- CONFIG IPHONE --- -->
+    <!-- Cache la barre d'URL et de navigation quand ajouté à l'écran d'accueil -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <!-- Barre de statut transparente (l'heure s'affiche sur ton fond noir) -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Planning OS">
+    
+    <!-- --- ICONE (Astuce Emoji) --- -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22black%22/><text x=%2250%22 y=%2250%22 dominant-baseline=%22central%22 text-anchor=%22middle%22 font-size=%2270%22>⚡</text></svg>">
+
     <title>Planning OS</title>
     
-    <!-- ⚠️ C'EST ICI QUE LA MAGIE OPÈRE ⚠️ -->
-    <!-- Ce script charge tout le design (couleurs, mise en page PC/Mobile) -->
+    <!-- --- MOTEUR DE DESIGN (TAILWIND) --- -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Configuration pour activer les couleurs spécifiques (Zinc, Emerald, etc.) -->
+    <!-- Configuration des couleurs Premium -->
     <script>
       tailwind.config = {
+        darkMode: 'class', // Permet le mode sombre manuel
         theme: {
           extend: {
+            fontFamily: {
+              sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            },
             colors: {
-              border: "hsl(var(--border))",
-              input: "hsl(var(--input))",
-              ring: "hsl(var(--ring))",
-              background: "hsl(var(--background))",
-              foreground: "hsl(var(--foreground))",
+              // Définition des couleurs systèmes pour le mode sombre profond
+              border: "hsl(240 3.7% 15.9%)",
+              input: "hsl(240 3.7% 15.9%)",
+              ring: "hsl(142.1 76.2% 36.3%)",
+              background: "hsl(240 10% 3.9%)",
+              foreground: "hsl(0 0% 98%)",
             }
           }
         }
@@ -29,16 +48,25 @@
     </script>
     
     <style>
-      /* Correctif pour les barres de défilement moches */
-      ::-webkit-scrollbar { width: 8px; height: 8px; }
-      ::-webkit-scrollbar-track { background: #09090b; }
-      ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 4px; }
-      ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
-      body { background-color: #000000; color: white; }
+      /* Police Pro */
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+      
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #000000;
+        color: white;
+        -webkit-font-smoothing: antialiased; /* Rendu du texte plus net sur Mac/iPhone */
+      }
+
+      /* Custom Scrollbar plus discrète */
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+      ::-webkit-scrollbar-thumb:hover { background: #555; }
     </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <noscript>Active JavaScript pour utiliser Planning OS.</noscript>
     <div id="root"></div>
   </body>
 </html>
