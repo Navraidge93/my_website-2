@@ -11,7 +11,7 @@ const API_URL = "https://backend-production-c3b5.up.railway.app";
 
 // --- DONNÉES DE DÉMARRAGE ---
 const INITIAL_TASKS = [
-  { id: 1, time: '08:00', title: 'Révision UE 4.6 (Urgent)', category: 'school', done: false },
+  { id: 1, time: '08:00', title: 'Révisions Examens', category: 'school', done: false },
   { id: 2, time: '13:30', title: 'Sourcing Vinted', category: 'business', done: false },
 ];
 
@@ -77,7 +77,7 @@ export default function App() {
     setTasks(savedTasks);
     // Simulation chargement amis
     setFriends([
-      { id: 1, name: "Sarah IFSI", status: "online", activity: "Révise UE 2.1" },
+      { id: 1, name: "Sarah Études", status: "online", activity: "Bibliothèque" },
       { id: 2, name: "Thomas Biz", status: "offline", activity: "Dernière connexion: 2h" },
     ]);
   };
@@ -312,7 +312,7 @@ export default function App() {
             <p className="px-4 text-[10px] font-bold uppercase text-zinc-500 mb-2">Focus Zones</p>
             
             <NavItem icon={<Briefcase />} label="Business" active={activeTab === 'business'} onClick={() => {setActiveTab('business'); setIsMobileMenuOpen(false)}} />
-            <NavItem icon={<GraduationCap />} label="Études IFSI" active={activeTab === 'school'} onClick={() => {setActiveTab('school'); setIsMobileMenuOpen(false)}} />
+            <NavItem icon={<GraduationCap />} label="Études" active={activeTab === 'school'} onClick={() => {setActiveTab('school'); setIsMobileMenuOpen(false)}} />
           </nav>
         </div>
         <div className="mt-auto p-4 border-t border-zinc-800 flex items-center justify-between">
@@ -347,7 +347,7 @@ export default function App() {
               {/* Stats */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                 <StatCard icon={<CheckCircle2 />} label="Tâches Finies" value={`${tasks.filter(t => t.done).length}/${tasks.length}`} color="emerald" />
-                <StatCard icon={<AlertCircle />} label="Urgence IFSI" value="UE 4.6" color="indigo" />
+                <StatCard icon={<AlertCircle />} label="Urgence Études" value="Dossier Fin d'année" color="indigo" />
                 <StatCard icon={<Trophy />} label="Mode Focus" value="ACTIVÉ" color="amber" />
               </div>
 
