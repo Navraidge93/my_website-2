@@ -1,13 +1,38 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
-  LayoutDashboard, Calendar, CheckCircle2, Brain, Trophy, Wifi, AlertCircle, Clock, 
-  Briefcase, GraduationCap, Dumbbell, Plus, Menu, X, Trash2, ArrowRight, 
-  Users, Send, Mail, Lock, Share2, Key, Sun, Moon, LogOut,
-  Maximize2, Minimize2, ArrowLeft, Bot, UserPlus, Fingerprint, Bell, ShieldCheck, User, Activity
+  LayoutDashboard, Calendar, CheckCircle2, Clock, 
+  Briefcase, GraduationCap, Plus, Menu, X, Trash2, ArrowRight, 
+  Users, Send, Mail, 
+  Sun, Moon, LogOut,
+  Maximize2, Minimize2, ArrowLeft, Bot, UserPlus, Bell, ShieldCheck, Activity
 } from 'lucide-react';
 
 // --- CONFIGURATION ---
 const API_URL = "https://backend-production-c3b5.up.railway.app";
+
+// Helper function to get display name from user/friend object
+const getUserDisplayName = (userObj) => {
+  if (!userObj) return 'Utilisateur';
+  if (userObj.name) return userObj.name;
+  if (userObj.email) {
+    // Extract name from email (e.g., "john.doe@email.com" -> "John Doe")
+    const emailPrefix = userObj.email.split('@')[0];
+    return emailPrefix.split(/[._-]/).map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+  }
+  return 'Utilisateur';
+};
+
+// Helper function to get initials from name
+const getUserInitials = (userObj) => {
+  const displayName = getUserDisplayName(userObj);
+  const words = displayName.split(' ');
+  if (words.length >= 2) {
+    return (words[0][0] + words[1][0]).toUpperCase();
+  }
+  return displayName.charAt(0).toUpperCase();
+};
 
 // --- THEME ENGINE (REFONTE MODERNE) ---
 const THEMES = {
@@ -80,43 +105,6 @@ export default function App() {
   const messagesEndRef = useRef(null);
   const aiEndRef = useRef(null);
 
-  // --- INITIALISATION ---
-  useEffect(() => {
-    checkServer();
-    const savedUser = localStorage.getItem('v12_user');
-    if (savedUser) {
-      const parsedUser = JSON.parse(savedUser);
-      setUser(parsedUser);
-      loadAllData(parsedUser.id);
-      setView('app');
-    }
-  }, []);
-
-  // Polling (Mise à jour auto toutes les 5s)
-  useEffect(() => {
-    let interval;
-    if (user && view === 'app') {
-      interval = setInterval(() => {
-        if (activeTab === 'social') {
-            fetchMessages();
-            fetchFriends(user.id);
-            if (selectedFriend) {
-              fetchPrivateMessages(selectedFriend.id);
-            }
-        }
-        fetchNotifications(user.id);
-      }, 5000);
-    }
-    return () => clearInterval(interval);
-  }, [user, view, activeTab, selectedFriend]);
-
-  const loadAllData = (userId) => {
-    fetchTasks(userId);
-    fetchFriends(userId);
-    fetchMessages();
-    fetchNotifications(userId);
-  };
-
   // --- API CALLS ---
 
   const showNotification = (message, type = 'info') => {
@@ -142,7 +130,7 @@ export default function App() {
     } catch { setServerStatus('offline'); }
   };
 
-  const fetchTasks = async (userId) => {
+  const fetchTasks = useCallback(async (userId) => {
     try {
       const res = await fetch(`${API_URL}/api/tasks?userId=${userId}`);
       if (res.ok) {
@@ -150,9 +138,9 @@ export default function App() {
         setTasks(data);
       }
     } catch (err) { console.error("Erreur tasks", err); }
-  };
+  }, []);
 
-  const fetchFriends = async (userId) => {
+  const fetchFriends = useCallback(async (userId) => {
     try {
       const res = await fetch(`${API_URL}/api/social/friends?userId=${userId}`);
       if (res.ok) {
@@ -160,9 +148,9 @@ export default function App() {
         setFriends(data);
       }
     } catch (err) { console.error("Erreur friends", err); }
-  };
+  }, []);
 
-  const fetchNotifications = async (userId) => {
+  const fetchNotifications = useCallback(async (userId) => {
     try {
         const res = await fetch(`${API_URL}/api/social/notifications?userId=${userId}`);
         if(res.ok) {
@@ -170,9 +158,10 @@ export default function App() {
             setNotifications(data);
         }
     } catch (err) { console.error("Erreur notifs", err); }
-  };
+  }, []);
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
+    if (!user) return;
     try {
       const res = await fetch(`${API_URL}/api/social/messages`);
       if (res.ok) {
@@ -187,9 +176,86 @@ export default function App() {
         setMessages(formatted);
       }
     } catch (err) { console.error("Erreur messages", err); }
-  };
+  }, [user]);
 
-  // --- ACTIONS ---
+  const fetchPrivateMessages = useCallback(async (friendId) => {
+    if (!user || !friendId) return;
+    try {
+      const res = await fetch(`${API_URL}/api/social/private-messages?userId=${user.id}&friendId=${friendId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPrivateMessages(prev => ({
+          ...prev,
+          [friendId]: data.map(msg => ({
+            ...msg,
+            isMe: String(msg.sender_id) === String(user.id)
+          }))
+        }));
+      }
+    } catch (err) { console.error("Erreur private messages", err); }
+  }, [user]);
+
+  const loadAllData = useCallback((userId) => {
+    fetchTasks(userId);
+    fetchFriends(userId);
+    fetchMessages();
+    fetchNotifications(userId);
+  }, [fetchTasks, fetchFriends, fetchMessages, fetchNotifications]);
+
+  // --- INITIALISATION ---
+  useEffect(() => {
+    checkServer();
+    const savedUser = localStorage.getItem('v12_user');
+    if (savedUser) {
+      const parsedUser = JSON.parse(savedUser);
+      setUser(parsedUser);
+      loadAllData(parsedUser.id);
+      setView('app');
+    }
+  // Only run once on mount - loadAllData is stable via useCallback
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Polling (Mise à jour auto toutes les 5s)
+  useEffect(() => {
+    let interval;
+    if (user && view === 'app') {
+      interval = setInterval(() => {
+        if (activeTab === 'social') {
+            fetchMessages();
+            fetchFriends(user.id);
+            if (selectedFriend) {
+              fetchPrivateMessages(selectedFriend.id);
+            }
+        }
+        fetchNotifications(user.id);
+      }, 5000);
+    }
+    return () => clearInterval(interval);
+  }, [user, view, activeTab, selectedFriend, fetchMessages, fetchFriends, fetchPrivateMessages, fetchNotifications]);
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, privateMessages]);
+
+  useEffect(() => {
+    aiEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [aiMessages]);
+
+  // Keyboard shortcuts (Escape to close modals)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (showModal) setShowModal(false);
+        if (showFriendModal) setShowFriendModal(false);
+        if (showNotifications) setShowNotifications(false);
+        if (showPrivateMessageModal) setShowPrivateMessageModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showModal, showFriendModal, showNotifications, showPrivateMessageModal]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -210,11 +276,13 @@ export default function App() {
         localStorage.setItem('v12_user', JSON.stringify(data.user));
         loadAllData(data.user.id);
         setView('app');
+        showNotification(`✅ Bienvenue ${getUserDisplayName(data.user)}!`, 'success');
       } else {
-        alert("Erreur: " + data.error);
+        showNotification("❌ Erreur: " + (data.error || "Connexion échouée"), 'error');
       }
     } catch (err) {
-      alert("Impossible de joindre le serveur.");
+      console.error(err);
+      showNotification("❌ Impossible de joindre le serveur", 'error');
     } finally {
       setLoading(false);
     }
@@ -236,8 +304,16 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...newTask, userId: user.id })
       });
-      if (res.ok) fetchTasks(user.id);
-    } catch (err) { console.error(err); }
+      if (res.ok) {
+        fetchTasks(user.id);
+        showNotification('✅ Tâche ajoutée avec succès!', 'success');
+      } else {
+        showNotification('❌ Erreur lors de l\'ajout de la tâche', 'error');
+      }
+    } catch (err) { 
+      console.error(err);
+      showNotification('❌ Erreur de connexion', 'error');
+    }
   };
 
   const toggleTask = async (taskId) => {
@@ -312,7 +388,7 @@ export default function App() {
       await fetch(`${API_URL}/api/social/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ senderId: user.id, senderName: user.name, content: msgContent })
+        body: JSON.stringify({ senderId: user.id, senderName: getUserDisplayName(user), content: msgContent })
       });
       fetchMessages(); 
     } catch (err) { console.error(err); }
@@ -326,7 +402,7 @@ export default function App() {
     const tempMsg = {
       id: Date.now(),
       sender_id: user.id,
-      sender_name: user.name,
+      sender_name: getUserDisplayName(user),
       receiver_id: selectedFriend.id,
       content: msgContent,
       created_at: new Date().toISOString(),
@@ -347,7 +423,7 @@ export default function App() {
         body: JSON.stringify({ 
           senderId: user.id, 
           receiverId: selectedFriend.id,
-          senderName: user.name,
+          senderName: getUserDisplayName(user),
           content: msgContent 
         })
       });
@@ -356,23 +432,6 @@ export default function App() {
       console.error(err);
       showNotification("❌ Erreur d'envoi du message", 'error');
     }
-  };
-
-  const fetchPrivateMessages = async (friendId) => {
-    if (!user || !friendId) return;
-    try {
-      const res = await fetch(`${API_URL}/api/social/private-messages?userId=${user.id}&friendId=${friendId}`);
-      if (res.ok) {
-        const data = await res.json();
-        setPrivateMessages(prev => ({
-          ...prev,
-          [friendId]: data.map(msg => ({
-            ...msg,
-            isMe: String(msg.sender_id) === String(user.id)
-          }))
-        }));
-      }
-    } catch (err) { console.error("Erreur private messages", err); }
   };
 
   const sendAiMessage = (e) => {
@@ -396,7 +455,7 @@ export default function App() {
         } else if (lowerMsg.includes('business') || lowerMsg.includes('argent')) {
             response = "Le succès aime la vitesse. Concentre-toi sur les tâches à haute valeur ajoutée.";
         } else if (lowerMsg.includes('bonjour') || lowerMsg.includes('salut')) {
-            response = `Salut ${user.name}. Prêt à conquérir la journée ?`;
+            response = `Salut ${getUserDisplayName(user)}. Prêt à conquérir la journée ?`;
         }
         
       setAiMessages(prev => [...prev, { id: Date.now()+1, sender: "Coach IA", text: response, isMe: false }]);
@@ -453,9 +512,9 @@ export default function App() {
                       {/* Affichage d'un utilisateur exemple */}
                       <div className="flex justify-between items-center p-3 rounded-xl bg-black/20">
                           <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-indigo-900 flex items-center justify-center font-bold text-indigo-200">{user?.name[0]}</div>
+                              <div className="w-8 h-8 rounded-full bg-indigo-900 flex items-center justify-center font-bold text-indigo-200">{getUserInitials(user)}</div>
                               <div>
-                                  <p className="text-sm font-bold text-white">{user?.name}</p>
+                                  <p className="text-sm font-bold text-white">{getUserDisplayName(user)}</p>
                                   <p className="text-xs text-neutral-500">{user?.email}</p>
                               </div>
                           </div>
@@ -551,9 +610,9 @@ export default function App() {
           </div>
           
           <div className={`p-4 rounded-xl ${T.surface} mb-6 flex items-center gap-3 border ${T.border} ${T.glow}`}>
-            <div className={`w-10 h-10 rounded-full bg-gradient-to-tr from-pink-500 to-purple-500 flex items-center justify-center font-bold text-white shadow-lg`}>{user?.name?.charAt(0).toUpperCase()}</div>
+            <div className={`w-10 h-10 rounded-full bg-gradient-to-tr from-pink-500 to-purple-500 flex items-center justify-center font-bold text-white shadow-lg`}>{getUserInitials(user)}</div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold truncate capitalize">{user?.name}</p>
+              <p className="text-sm font-bold truncate">{getUserDisplayName(user)}</p>
               <div className="flex items-center gap-1.5 mt-0.5"><span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span className={`text-[10px] ${T.textMuted}`}>En ligne</span></div>
             </div>
             <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 hover:bg-white/5 rounded-lg transition">
@@ -611,9 +670,9 @@ export default function App() {
                     {notifications.length === 0 && <p className={`text-xs ${T.textMuted}`}>Rien à signaler.</p>}
                     {notifications.map(n => (
                         <div key={n.id} className={`p-3 rounded-xl ${T.input} text-sm flex flex-col gap-2`}>
-                            <div><span className="font-bold">{n.from_name}</span> {n.content}</div>
-                            {n.type === 'friend_request' && (
-                                <button onClick={() => handleAcceptFriend(n.from_user_id)} className={`text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-bold w-full`}>Accepter la demande</button>
+                            <div><span className="font-bold">{n.from_name || n.from_email || 'Un utilisateur'}</span> {n.content}</div>
+                            {n.type === 'friend_request' && n.from_user_id && (
+                                <button onClick={() => handleAcceptFriend(n.from_user_id, n.from_name || n.from_email || 'cet utilisateur')} className={`text-xs px-3 py-1.5 bg-emerald-600 text-white rounded-lg font-bold w-full`}>Accepter la demande</button>
                             )}
                         </div>
                     ))}
@@ -631,7 +690,7 @@ export default function App() {
                   <h2 className="text-3xl font-bold mb-1 text-white">
                     {activeTab === 'dashboard' ? 'Tableau de Bord' : activeTab === 'business' ? 'QG Business' : 'QG Études'}
                   </h2>
-                  <p className={T.textMuted}>Prêt à dominer la journée, <span className={`font-bold capitalize ${T.accentText}`}>{user?.name}</span> ?</p>
+                  <p className={T.textMuted}>Prêt à dominer la journée, <span className={`font-bold ${T.accentText}`}>{getUserDisplayName(user)}</span> ?</p>
                 </div>
                 <div className="flex gap-2">
                     <button onClick={() => setShowModal(true)} className={`px-4 py-2 rounded-xl ${T.accentBg} text-white font-bold shadow-lg flex items-center gap-2`}>
@@ -699,8 +758,10 @@ export default function App() {
                         <p className={`text-[10px] font-bold uppercase ${T.textMuted}`}>En attente</p>
                         {notifications.filter(n => n.type === 'friend_request').map(n => (
                             <div key={n.id} className={`p-3 rounded-xl border ${T.border} bg-pink-500/10 border-pink-500/20 animate-pulse-slow`}>
-                                <p className="text-xs mb-2"><span className="font-bold text-pink-400">{n.from_name}</span> veut te rejoindre.</p>
-                                <button onClick={() => handleAcceptFriend(n.from_user_id, n.from_name)} className="w-full py-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded text-xs font-bold hover:opacity-90 transition">Accepter</button>
+                                <p className="text-xs mb-2"><span className="font-bold text-pink-400">{n.from_name || n.from_email || 'Un utilisateur'}</span> veut te rejoindre.</p>
+                                {n.from_user_id && (
+                                  <button onClick={() => handleAcceptFriend(n.from_user_id, n.from_name || n.from_email || 'cet utilisateur')} className="w-full py-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded text-xs font-bold hover:opacity-90 transition">Accepter</button>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -708,7 +769,13 @@ export default function App() {
 
                 <div className="flex-1 overflow-y-auto space-y-2">
                   {friends.length === 0 && <p className={`text-xs ${T.textMuted} italic text-center py-4`}>Pas encore d'amis acceptés.</p>}
-                  {friends.filter(f => !searchQuery || f.name.toLowerCase().includes(searchQuery.toLowerCase()) || f.email.toLowerCase().includes(searchQuery.toLowerCase())).map(f => (
+                  {friends.filter(f => {
+                    if (!searchQuery) return true;
+                    const displayName = getUserDisplayName(f).toLowerCase();
+                    const email = (f.email || '').toLowerCase();
+                    const query = searchQuery.toLowerCase();
+                    return displayName.includes(query) || email.includes(query);
+                  }).map(f => (
                     <div 
                       key={f.id} 
                       onClick={() => {
@@ -719,11 +786,11 @@ export default function App() {
                       className={`p-3 rounded-xl border ${T.border} ${selectedFriend?.id === f.id ? T.accentLight : T.hover} flex items-center gap-3 cursor-pointer transition-all hover:scale-[1.02] ${T.glow}`}
                     >
                       <div className="relative">
-                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center font-bold text-white`}>{f.name[0]}</div>
+                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center font-bold text-white`}>{getUserInitials(f)}</div>
                         <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 ${theme === 'dark' ? 'border-slate-900' : 'border-white'} ${f.status === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`}></div>
                       </div>
                       <div className='overflow-hidden flex-1'>
-                        <p className="text-sm font-bold truncate">{f.name}</p>
+                        <p className="text-sm font-bold truncate">{getUserDisplayName(f)}</p>
                         <p className={`text-xs ${T.textMuted} truncate`}>{f.email}</p>
                       </div>
                       {privateMessages[f.id]?.length > 0 && (
@@ -767,9 +834,9 @@ export default function App() {
                       <button onClick={() => setShowPrivateMessageModal(false)} className={`${T.textMuted} hover:${T.text} transition`}>
                         <ArrowLeft size={20} />
                       </button>
-                      <div className={`w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center font-bold text-white`}>{selectedFriend?.name[0]}</div>
+                      <div className={`w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center font-bold text-white`}>{getUserInitials(selectedFriend)}</div>
                       <div>
-                        <p className="font-bold text-sm">{selectedFriend?.name}</p>
+                        <p className="font-bold text-sm">{getUserDisplayName(selectedFriend)}</p>
                         <p className={`text-xs ${T.textMuted}`}>Message privé</p>
                       </div>
                     </div>
@@ -791,7 +858,7 @@ export default function App() {
                     <div ref={messagesEndRef} />
                   </div>
                   <form onSubmit={handleSendPrivateMessage} className={`p-4 border-t ${T.border} ${T.surface} flex gap-2`}>
-                    <input value={newPrivateMessage} onChange={e => setNewPrivateMessage(e.target.value)} placeholder={`Message à ${selectedFriend?.name}...`} className={`flex-1 bg-transparent border-none outline-none text-sm px-2 ${T.text}`} />
+                    <input value={newPrivateMessage} onChange={e => setNewPrivateMessage(e.target.value)} placeholder={`Message à ${getUserDisplayName(selectedFriend)}...`} className={`flex-1 bg-transparent border-none outline-none text-sm px-2 ${T.text}`} />
                     <button className={`p-2 rounded-lg ${T.accentBg} text-white hover:opacity-90 transition ${T.glow}`}><Send size={18} /></button>
                   </form>
                 </div>
@@ -836,14 +903,45 @@ export default function App() {
           <div className={`${T.sidebar} border ${T.border} w-full max-w-md rounded-2xl p-6 shadow-2xl ${T.glow}`}>
             <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><Plus className={T.accentText} /> Ajouter Tâche</h3>
             <form onSubmit={handleAddTask} className="space-y-4">
-              <input autoFocus value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} className={`w-full p-3 rounded-lg border ${T.border} ${T.input} focus:ring-2 focus:ring-purple-500/50 outline-none`} placeholder="Titre..." />
+              <input 
+                autoFocus 
+                required
+                value={newTask.title} 
+                onChange={e => setNewTask({...newTask, title: e.target.value})} 
+                className={`w-full p-3 rounded-lg border ${T.border} ${T.input} focus:ring-2 focus:ring-purple-500/50 outline-none`} 
+                placeholder="Titre de la tâche..." 
+                minLength={3}
+                maxLength={100}
+              />
               <div className="flex gap-4">
-                <input type="time" value={newTask.time} onChange={e => setNewTask({...newTask, time: e.target.value})} className={`w-full p-3 rounded-lg border ${T.border} ${T.input} outline-none`} />
-                <select value={newTask.category} onChange={e => setNewTask({...newTask, category: e.target.value})} className={`w-full p-3 rounded-lg border ${T.border} ${T.input} outline-none`}>
-                  <option value="school">Études</option><option value="business">Business</option><option value="health">Sport</option>
+                <input 
+                  type="time" 
+                  required
+                  value={newTask.time} 
+                  onChange={e => setNewTask({...newTask, time: e.target.value})} 
+                  className={`w-full p-3 rounded-lg border ${T.border} ${T.input} outline-none focus:ring-2 focus:ring-purple-500/50`} 
+                />
+                <select 
+                  value={newTask.category} 
+                  onChange={e => setNewTask({...newTask, category: e.target.value})} 
+                  className={`w-full p-3 rounded-lg border ${T.border} ${T.input} outline-none focus:ring-2 focus:ring-purple-500/50`}
+                >
+                  <option value="school">Études</option>
+                  <option value="business">Business</option>
+                  <option value="health">Sport</option>
                 </select>
               </div>
-              <div className="flex gap-2 mt-4"><button type="button" onClick={() => setShowModal(false)} className={`flex-1 py-3 ${T.input} rounded-lg hover:opacity-80 transition`}>Annuler</button><button className={`flex-1 py-3 ${T.accentBg} text-white rounded-lg hover:opacity-90 transition shadow-lg shadow-purple-500/50`}>Valider</button></div>
+              <div className="flex gap-2 mt-4">
+                <button type="button" onClick={() => setShowModal(false)} className={`flex-1 py-3 ${T.input} rounded-lg hover:opacity-80 transition font-medium`}>Annuler</button>
+                <button 
+                  type="submit" 
+                  disabled={!newTask.title.trim()} 
+                  aria-label={!newTask.title.trim() ? "Veuillez saisir un titre pour valider" : "Valider la tâche"}
+                  className={`flex-1 py-3 ${T.accentBg} text-white rounded-lg hover:opacity-90 transition shadow-lg shadow-purple-500/50 font-bold disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  Valider
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -856,8 +954,23 @@ export default function App() {
             <h3 className="font-bold mb-4 flex items-center gap-2"><UserPlus className={T.accentText} /> Recruter un allié</h3>
             <p className={`text-xs ${T.textMuted} mb-4`}>Entre l'email de ton ami pour l'ajouter.</p>
             <form onSubmit={handleAddFriend} className="flex gap-2">
-              <input autoFocus value={friendEmail} onChange={e => setFriendEmail(e.target.value)} className={`flex-1 p-3 rounded-lg border ${T.border} ${T.input} outline-none focus:ring-2 focus:ring-purple-500/50`} placeholder="email@ami.com..." />
-              <button className={`p-3 ${T.accentBg} text-white rounded-lg hover:opacity-90 transition shadow-lg shadow-purple-500/50`}><Plus/></button>
+              <input 
+                autoFocus 
+                type="email"
+                required
+                value={friendEmail} 
+                onChange={e => setFriendEmail(e.target.value)} 
+                className={`flex-1 p-3 rounded-lg border ${T.border} ${T.input} outline-none focus:ring-2 focus:ring-purple-500/50`} 
+                placeholder="email@ami.com..." 
+              />
+              <button 
+                type="submit" 
+                disabled={!friendEmail.trim()} 
+                aria-label={!friendEmail.trim() ? "Veuillez saisir un email pour ajouter un ami" : "Envoyer la demande d'ami"}
+                className={`p-3 ${T.accentBg} text-white rounded-lg hover:opacity-90 transition shadow-lg shadow-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                <Plus/>
+              </button>
             </form>
             <button onClick={() => setShowFriendModal(false)} className={`mt-4 text-xs w-full text-center ${T.textMuted} hover:${T.text} transition`}>Fermer</button>
           </div>
