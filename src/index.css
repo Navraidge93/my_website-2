@@ -109,8 +109,10 @@ body {
   box-shadow: 0 0 20px rgba(168, 85, 247, 0.4);
 }
 
-/* Smooth transitions globales */
-* {
+/* Smooth transitions pour les éléments interactifs */
+button, input, select, textarea, a, 
+[role="button"], [role="link"],
+.transition, .transition-all {
   transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 200ms;

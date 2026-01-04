@@ -212,6 +212,7 @@ export default function App() {
       loadAllData(parsedUser.id);
       setView('app');
     }
+  // Only run once on mount - loadAllData is stable via useCallback
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -932,7 +933,14 @@ export default function App() {
               </div>
               <div className="flex gap-2 mt-4">
                 <button type="button" onClick={() => setShowModal(false)} className={`flex-1 py-3 ${T.input} rounded-lg hover:opacity-80 transition font-medium`}>Annuler</button>
-                <button type="submit" disabled={!newTask.title.trim()} className={`flex-1 py-3 ${T.accentBg} text-white rounded-lg hover:opacity-90 transition shadow-lg shadow-purple-500/50 font-bold disabled:opacity-50 disabled:cursor-not-allowed`}>Valider</button>
+                <button 
+                  type="submit" 
+                  disabled={!newTask.title.trim()} 
+                  aria-label={!newTask.title.trim() ? "Veuillez saisir un titre pour valider" : "Valider la tâche"}
+                  className={`flex-1 py-3 ${T.accentBg} text-white rounded-lg hover:opacity-90 transition shadow-lg shadow-purple-500/50 font-bold disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  Valider
+                </button>
               </div>
             </form>
           </div>
@@ -955,7 +963,14 @@ export default function App() {
                 className={`flex-1 p-3 rounded-lg border ${T.border} ${T.input} outline-none focus:ring-2 focus:ring-purple-500/50`} 
                 placeholder="email@ami.com..." 
               />
-              <button type="submit" disabled={!friendEmail.trim()} className={`p-3 ${T.accentBg} text-white rounded-lg hover:opacity-90 transition shadow-lg shadow-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed`}><Plus/></button>
+              <button 
+                type="submit" 
+                disabled={!friendEmail.trim()} 
+                aria-label={!friendEmail.trim() ? "Veuillez saisir un email pour ajouter un ami" : "Envoyer la demande d'ami"}
+                className={`p-3 ${T.accentBg} text-white rounded-lg hover:opacity-90 transition shadow-lg shadow-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                <Plus/>
+              </button>
             </form>
             <button onClick={() => setShowFriendModal(false)} className={`mt-4 text-xs w-full text-center ${T.textMuted} hover:${T.text} transition`}>Fermer</button>
           </div>
