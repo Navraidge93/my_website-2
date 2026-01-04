@@ -233,6 +233,29 @@ export default function App() {
     return () => clearInterval(interval);
   }, [user, view, activeTab, selectedFriend, fetchMessages, fetchFriends, fetchPrivateMessages, fetchNotifications]);
 
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, privateMessages]);
+
+  useEffect(() => {
+    aiEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [aiMessages]);
+
+  // Keyboard shortcuts (Escape to close modals)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (showModal) setShowModal(false);
+        if (showFriendModal) setShowFriendModal(false);
+        if (showNotifications) setShowNotifications(false);
+        if (showPrivateMessageModal) setShowPrivateMessageModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showModal, showFriendModal, showNotifications, showPrivateMessageModal]);
+
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!email) return;
@@ -252,11 +275,13 @@ export default function App() {
         localStorage.setItem('v12_user', JSON.stringify(data.user));
         loadAllData(data.user.id);
         setView('app');
+        showNotification(`✅ Bienvenue ${getUserDisplayName(data.user)}!`, 'success');
       } else {
-        alert("Erreur: " + data.error);
+        showNotification("❌ Erreur: " + (data.error || "Connexion échouée"), 'error');
       }
     } catch (err) {
-      alert("Impossible de joindre le serveur.");
+      console.error(err);
+      showNotification("❌ Impossible de joindre le serveur", 'error');
     } finally {
       setLoading(false);
     }
@@ -278,8 +303,16 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...newTask, userId: user.id })
       });
-      if (res.ok) fetchTasks(user.id);
-    } catch (err) { console.error(err); }
+      if (res.ok) {
+        fetchTasks(user.id);
+        showNotification('✅ Tâche ajoutée avec succès!', 'success');
+      } else {
+        showNotification('❌ Erreur lors de l\'ajout de la tâche', 'error');
+      }
+    } catch (err) { 
+      console.error(err);
+      showNotification('❌ Erreur de connexion', 'error');
+    }
   };
 
   const toggleTask = async (taskId) => {
@@ -869,14 +902,38 @@ export default function App() {
           <div className={`${T.sidebar} border ${T.border} w-full max-w-md rounded-2xl p-6 shadow-2xl ${T.glow}`}>
             <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><Plus className={T.accentText} /> Ajouter Tâche</h3>
             <form onSubmit={handleAddTask} className="space-y-4">
-              <input autoFocus value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} className={`w-full p-3 rounded-lg border ${T.border} ${T.input} focus:ring-2 focus:ring-purple-500/50 outline-none`} placeholder="Titre..." />
+              <input 
+                autoFocus 
+                required
+                value={newTask.title} 
+                onChange={e => setNewTask({...newTask, title: e.target.value})} 
+                className={`w-full p-3 rounded-lg border ${T.border} ${T.input} focus:ring-2 focus:ring-purple-500/50 outline-none`} 
+                placeholder="Titre de la tâche..." 
+                minLength={3}
+                maxLength={100}
+              />
               <div className="flex gap-4">
-                <input type="time" value={newTask.time} onChange={e => setNewTask({...newTask, time: e.target.value})} className={`w-full p-3 rounded-lg border ${T.border} ${T.input} outline-none`} />
-                <select value={newTask.category} onChange={e => setNewTask({...newTask, category: e.target.value})} className={`w-full p-3 rounded-lg border ${T.border} ${T.input} outline-none`}>
-                  <option value="school">Études</option><option value="business">Business</option><option value="health">Sport</option>
+                <input 
+                  type="time" 
+                  required
+                  value={newTask.time} 
+                  onChange={e => setNewTask({...newTask, time: e.target.value})} 
+                  className={`w-full p-3 rounded-lg border ${T.border} ${T.input} outline-none focus:ring-2 focus:ring-purple-500/50`} 
+                />
+                <select 
+                  value={newTask.category} 
+                  onChange={e => setNewTask({...newTask, category: e.target.value})} 
+                  className={`w-full p-3 rounded-lg border ${T.border} ${T.input} outline-none focus:ring-2 focus:ring-purple-500/50`}
+                >
+                  <option value="school">Études</option>
+                  <option value="business">Business</option>
+                  <option value="health">Sport</option>
                 </select>
               </div>
-              <div className="flex gap-2 mt-4"><button type="button" onClick={() => setShowModal(false)} className={`flex-1 py-3 ${T.input} rounded-lg hover:opacity-80 transition`}>Annuler</button><button className={`flex-1 py-3 ${T.accentBg} text-white rounded-lg hover:opacity-90 transition shadow-lg shadow-purple-500/50`}>Valider</button></div>
+              <div className="flex gap-2 mt-4">
+                <button type="button" onClick={() => setShowModal(false)} className={`flex-1 py-3 ${T.input} rounded-lg hover:opacity-80 transition font-medium`}>Annuler</button>
+                <button type="submit" disabled={!newTask.title.trim()} className={`flex-1 py-3 ${T.accentBg} text-white rounded-lg hover:opacity-90 transition shadow-lg shadow-purple-500/50 font-bold disabled:opacity-50 disabled:cursor-not-allowed`}>Valider</button>
+              </div>
             </form>
           </div>
         </div>
@@ -889,8 +946,16 @@ export default function App() {
             <h3 className="font-bold mb-4 flex items-center gap-2"><UserPlus className={T.accentText} /> Recruter un allié</h3>
             <p className={`text-xs ${T.textMuted} mb-4`}>Entre l'email de ton ami pour l'ajouter.</p>
             <form onSubmit={handleAddFriend} className="flex gap-2">
-              <input autoFocus value={friendEmail} onChange={e => setFriendEmail(e.target.value)} className={`flex-1 p-3 rounded-lg border ${T.border} ${T.input} outline-none focus:ring-2 focus:ring-purple-500/50`} placeholder="email@ami.com..." />
-              <button className={`p-3 ${T.accentBg} text-white rounded-lg hover:opacity-90 transition shadow-lg shadow-purple-500/50`}><Plus/></button>
+              <input 
+                autoFocus 
+                type="email"
+                required
+                value={friendEmail} 
+                onChange={e => setFriendEmail(e.target.value)} 
+                className={`flex-1 p-3 rounded-lg border ${T.border} ${T.input} outline-none focus:ring-2 focus:ring-purple-500/50`} 
+                placeholder="email@ami.com..." 
+              />
+              <button type="submit" disabled={!friendEmail.trim()} className={`p-3 ${T.accentBg} text-white rounded-lg hover:opacity-90 transition shadow-lg shadow-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed`}><Plus/></button>
             </form>
             <button onClick={() => setShowFriendModal(false)} className={`mt-4 text-xs w-full text-center ${T.textMuted} hover:${T.text} transition`}>Fermer</button>
           </div>
