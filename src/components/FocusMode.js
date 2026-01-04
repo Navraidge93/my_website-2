@@ -4,9 +4,10 @@ import { X, Play, Pause, SkipForward, CheckCircle2, Clock, Target } from 'lucide
 import confetti from 'canvas-confetti';
 
 const FocusMode = ({ task, onClose, onComplete, theme }) => {
-  const [timeLeft, setTimeLeft] = useState(25 * 60); // 25 minutes default
+  const DEFAULT_FOCUS_TIME_SECONDS = 25 * 60; // 25 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(DEFAULT_FOCUS_TIME_SECONDS);
   const [isRunning, setIsRunning] = useState(false);
-  const [sessionTime] = useState(25 * 60);
+  const [sessionTime] = useState(DEFAULT_FOCUS_TIME_SECONDS);
   const isDark = theme === 'dark';
 
   useEffect(() => {
@@ -28,11 +29,11 @@ const FocusMode = ({ task, onClose, onComplete, theme }) => {
     const animationEnd = Date.now() + duration;
     const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 1000 };
 
-    function randomInRange(min, max) {
+    const randomInRange = (min, max) => {
       return Math.random() * (max - min) + min;
-    }
+    };
 
-    const interval = setInterval(function() {
+    const interval = setInterval(() => {
       const timeLeft = animationEnd - Date.now();
 
       if (timeLeft <= 0) {

@@ -5,6 +5,10 @@ import { Clock, CheckCircle2, Trash2, Target, Play } from 'lucide-react';
 const TimelineView = ({ tasks, onToggleTask, onDeleteTask, onStartFocus, category, theme }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   
+  // Constants for timeline time range
+  const START_TIME_HOURS = 6; // 6:00 AM
+  const END_TIME_HOURS = 24; // Midnight
+  
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(new Date());
@@ -17,13 +21,13 @@ const TimelineView = ({ tasks, onToggleTask, onDeleteTask, onStartFocus, categor
     const hours = now.getHours();
     const minutes = now.getMinutes();
     const totalMinutes = hours * 60 + minutes;
-    // Position from 6:00 AM to 11:59 PM (18 hours = 1080 minutes)
-    const startMinutes = 6 * 60; // 6 AM
-    const endMinutes = 24 * 60; // Midnight
+    // Position from 6:00 AM to 11:59 PM
+    const startMinutes = START_TIME_HOURS * 60;
+    const endMinutes = END_TIME_HOURS * 60;
     const rangeMinutes = endMinutes - startMinutes;
     
     if (totalMinutes < startMinutes) return 0;
-    if (totalMinutes > endMinutes) return 100;
+    if (totalMinutes >= endMinutes) return 100;
     
     return ((totalMinutes - startMinutes) / rangeMinutes) * 100;
   };
@@ -31,12 +35,12 @@ const TimelineView = ({ tasks, onToggleTask, onDeleteTask, onStartFocus, categor
   const getTaskTimePosition = (taskTime) => {
     const [hours, minutes] = taskTime.split(':').map(Number);
     const totalMinutes = hours * 60 + minutes;
-    const startMinutes = 6 * 60;
-    const endMinutes = 24 * 60;
+    const startMinutes = START_TIME_HOURS * 60;
+    const endMinutes = END_TIME_HOURS * 60;
     const rangeMinutes = endMinutes - startMinutes;
     
     if (totalMinutes < startMinutes) return 0;
-    if (totalMinutes > endMinutes) return 100;
+    if (totalMinutes >= endMinutes) return 100;
     
     return ((totalMinutes - startMinutes) / rangeMinutes) * 100;
   };
