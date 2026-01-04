@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  LayoutDashboard, Calendar, CheckCircle2, Clock, 
-  Briefcase, GraduationCap, Plus, Menu, X, Trash2, ArrowRight, 
+  LayoutDashboard, Calendar, Clock, 
+  Briefcase, GraduationCap, Plus, Menu, X, ArrowRight, 
   Users, Send, Mail, 
   Sun, Moon, LogOut,
   Maximize2, Minimize2, ArrowLeft, Bot, UserPlus, Bell, ShieldCheck, Activity
 } from 'lucide-react';
+import TimelineView from './components/TimelineView';
+import FocusMode from './components/FocusMode';
 
 // --- CONFIGURATION ---
 const API_URL = "https://backend-production-c3b5.up.railway.app";
@@ -82,6 +85,8 @@ export default function App() {
   const [showFriendModal, setShowFriendModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showPrivateMessageModal, setShowPrivateMessageModal] = useState(false);
+  const [showFocusMode, setShowFocusMode] = useState(false);
+  const [focusTask, setFocusTask] = useState(null);
   
   // Data
   const [tasks, setTasks] = useState([]);
@@ -483,6 +488,20 @@ export default function App() {
     }
   };
 
+  const handleStartFocus = (task) => {
+    setFocusTask(task);
+    setShowFocusMode(true);
+  };
+
+  const handleFocusComplete = async () => {
+    if (focusTask) {
+      await toggleTask(focusTask.id);
+      showNotification('🎉 Tâche terminée avec succès!', 'success');
+    }
+    setShowFocusMode(false);
+    setFocusTask(null);
+  };
+
   const T = THEMES[theme];
 
   // --- RENDU ADMIN ---
@@ -543,57 +562,149 @@ export default function App() {
 
   if (view === 'landing') {
       return (
-        <div className={`min-h-screen flex flex-col items-center justify-center p-4 ${T.bg} ${T.text} relative overflow-hidden font-sans`}>
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className={`min-h-screen flex flex-col items-center justify-center p-4 ${T.bg} ${T.text} relative overflow-hidden font-sans`}
+        >
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/30 via-slate-950 to-black opacity-80"></div>
             
             {/* Animated background elements */}
-            <div className="absolute top-20 left-20 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
-            <div className="absolute bottom-20 right-20 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
+            <motion.div 
+              animate={{ 
+                scale: [1, 1.2, 1],
+                opacity: [0.3, 0.5, 0.3]
+              }}
+              transition={{ duration: 8, repeat: Infinity }}
+              className="absolute top-20 left-20 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl"
+            />
+            <motion.div 
+              animate={{ 
+                scale: [1, 1.3, 1],
+                opacity: [0.3, 0.5, 0.3]
+              }}
+              transition={{ duration: 10, repeat: Infinity, delay: 1 }}
+              className="absolute bottom-20 right-20 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl"
+            />
             
-            <div className="relative z-10 text-center max-w-2xl px-4 animate-in fade-in zoom-in duration-700">
-                <div className={`w-24 h-24 bg-gradient-to-br from-pink-500 to-purple-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-purple-500/50 animate-bounce-slow`}>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.7 }}
+              className="relative z-10 text-center max-w-2xl px-4"
+            >
+                <motion.div 
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
+                  className={`w-24 h-24 bg-gradient-to-br from-pink-500 to-purple-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-purple-500/50`}
+                >
                     <LayoutDashboard size={48} className="text-white" />
-                </div>
-                <h1 className="text-5xl md:text-7xl font-bold tracking-tighter mb-6 bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">Planning OS</h1>
-                <p className={`text-lg md:text-xl mb-12 max-w-lg mx-auto ${T.textMuted}`}>L'outil ultime pour organiser ta vie.</p>
-                <button onClick={() => setView('login')} className={`px-8 py-4 rounded-full ${T.accentBg} text-white font-bold text-lg hover:scale-105 transition-transform flex items-center gap-2 mx-auto shadow-2xl shadow-purple-500/50`}>
+                </motion.div>
+                <motion.h1 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="text-5xl md:text-7xl font-bold tracking-tighter mb-6 bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent"
+                >
+                  Planning OS
+                </motion.h1>
+                <motion.p 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className={`text-lg md:text-xl mb-12 max-w-lg mx-auto ${T.textMuted}`}
+                >
+                  L'outil ultime pour organiser ta vie.
+                </motion.p>
+                <motion.button 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.5 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setView('login')} 
+                  className={`px-8 py-4 rounded-full ${T.accentBg} text-white font-bold text-lg flex items-center gap-2 mx-auto shadow-2xl shadow-purple-500/50`}
+                >
                     Connexion <ArrowRight size={20} />
-                </button>
-                <div className="mt-24 flex items-center gap-2 justify-center">
+                </motion.button>
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.7 }}
+                  className="mt-24 flex items-center gap-2 justify-center"
+                >
                     <div className={`w-2 h-2 rounded-full ${serverStatus === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                     <span className={`text-xs ${T.textMuted}`}>SERVER: {serverStatus.toUpperCase()}</span>
-                </div>
-            </div>
-        </div>
+                </motion.div>
+            </motion.div>
+        </motion.div>
       );
   }
 
   if (view === 'login') {
     return (
-      <div className={`min-h-screen flex items-center justify-center p-4 ${T.bg} ${T.text}`}>
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className={`min-h-screen flex items-center justify-center p-4 ${T.bg} ${T.text}`}
+      >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/30 via-slate-950 to-black opacity-80"></div>
-        <button onClick={() => setView('landing')} className={`absolute top-8 left-8 hover:text-white flex items-center gap-2 transition-colors ${T.textMuted} z-10`}>
+        <motion.button 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          onClick={() => setView('landing')} 
+          className={`absolute top-8 left-8 hover:text-white flex items-center gap-2 transition-colors ${T.textMuted} z-10`}
+        >
             <ArrowLeft size={20} /> Retour
-        </button>
-        <div className={`w-full max-w-sm p-8 rounded-3xl border ${T.border} ${T.sidebar} shadow-2xl relative overflow-hidden flex flex-col gap-6 z-10 ${T.glow}`}>
-          <div className="text-center">
-            <div className={`w-16 h-16 ${T.accentBg} rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-500/50`}>
+        </motion.button>
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ type: 'spring', damping: 25 }}
+          className={`w-full max-w-sm p-8 rounded-3xl border ${T.border} ${T.sidebar} shadow-2xl relative overflow-hidden flex flex-col gap-6 z-10 ${T.glow} backdrop-blur-xl`}
+        >
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="text-center"
+          >
+            <motion.div 
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', delay: 0.2 }}
+              className={`w-16 h-16 ${T.accentBg} rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-500/50`}
+            >
               <Mail size={32} className="text-white" />
-            </div>
+            </motion.div>
             <h1 className="text-2xl font-bold">Connexion</h1>
             <p className={`text-sm ${T.textMuted} mt-2`}>Entre ton email pour accéder à ton espace.</p>
-          </div>
-          <form onSubmit={handleLogin} className="flex flex-col w-full gap-4">
-            <div className={`flex items-center px-4 py-4 rounded-xl border ${T.border} ${T.input} focus-within:ring-2 focus-within:ring-purple-500/50 transition duration-200`}>
+          </motion.div>
+          <motion.form 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            onSubmit={handleLogin} 
+            className="flex flex-col w-full gap-4"
+          >
+            <div className={`flex items-center px-4 py-4 rounded-xl border ${T.border} ${T.input} focus-within:ring-2 focus-within:ring-purple-500/50 transition duration-200 backdrop-blur-sm`}>
                 <Mail size={18} className={T.textMuted} />
                 <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ton@email.com" className={`flex-1 bg-transparent border-none outline-none ml-3 text-base font-medium ${T.text}`} />
             </div>
-            <button disabled={loading} className={`w-full py-4 rounded-xl font-bold text-white ${T.accentBg} hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-500/50`}>
+            <motion.button 
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              disabled={loading} 
+              className={`w-full py-4 rounded-xl font-bold text-white ${T.accentBg} hover:opacity-90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-500/50 disabled:opacity-50`}
+            >
                 {loading ? "Chargement..." : "Entrer dans le QG"} <ArrowRight size={18} />
-            </button>
-          </form>
-        </div>
-      </div>
+            </motion.button>
+          </motion.form>
+        </motion.div>
+      </motion.div>
     );
   }
 
@@ -682,59 +793,69 @@ export default function App() {
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8 pb-32 scroll-smooth">
           
-          {/* DASHBOARD & ZONES */}
-          {(activeTab === 'dashboard' || activeTab === 'business' || activeTab === 'school') && (
-            <div className="max-w-5xl mx-auto animate-in fade-in duration-500">
-              <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-8">
-                <div>
-                  <h2 className="text-3xl font-bold mb-1 text-white">
-                    {activeTab === 'dashboard' ? 'Tableau de Bord' : activeTab === 'business' ? 'QG Business' : 'QG Études'}
-                  </h2>
-                  <p className={T.textMuted}>Prêt à dominer la journée, <span className={`font-bold ${T.accentText}`}>{getUserDisplayName(user)}</span> ?</p>
+          <AnimatePresence mode="wait">
+            {/* DASHBOARD & ZONES */}
+            {(activeTab === 'dashboard' || activeTab === 'business' || activeTab === 'school') && (
+              <motion.div 
+                key={activeTab}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="max-w-5xl mx-auto"
+              >
+                <div className="flex flex-col md:flex-row justify-between items-end gap-6 mb-8">
+                  <div>
+                    <h2 className="text-3xl font-bold mb-1 text-white">
+                      {activeTab === 'dashboard' ? 'Tableau de Bord' : activeTab === 'business' ? 'QG Business' : 'QG Études'}
+                    </h2>
+                    <p className={T.textMuted}>Prêt à dominer la journée, <span className={`font-bold ${T.accentText}`}>{getUserDisplayName(user)}</span> ?</p>
+                  </div>
+                  <div className="flex gap-2">
+                      <motion.button 
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setShowModal(true)} 
+                        className={`px-4 py-2 rounded-xl ${T.accentBg} text-white font-bold shadow-lg flex items-center gap-2`}
+                      >
+                          <Plus size={18} /> Nouvelle Tâche
+                      </motion.button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                    <button onClick={() => setShowModal(true)} className={`px-4 py-2 rounded-xl ${T.accentBg} text-white font-bold shadow-lg flex items-center gap-2`}>
-                        <Plus size={18} /> Nouvelle Tâche
-                    </button>
-                </div>
-              </div>
 
-              {/* LISTE DES TÂCHES */}
-              <div className={`rounded-2xl ${T.surface} border ${T.border} overflow-hidden shadow-xl ${T.glow}`}>
+              {/* TIMELINE VIEW */}
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className={`rounded-2xl ${T.surface} border ${T.border} overflow-hidden shadow-xl ${T.glow} backdrop-blur-xl`}
+              >
                 <div className={`p-4 border-b ${T.border} flex justify-between items-center ${T.input}`}>
                   <h3 className="font-bold flex items-center gap-2"><Clock className={T.accentText} size={18} /> Timeline {activeTab !== 'dashboard' && `(${activeTab})`}</h3>
                   <button onClick={toggleFullscreen} className={T.textMuted}>{isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>
                 </div>
-                <div className={`divide-y ${theme === 'dark' ? 'divide-purple-900/30' : 'divide-purple-200'}`}>
-                  {tasks.filter(t => activeTab === 'dashboard' || t.category === activeTab).length === 0 && (
-                      <div className={`p-12 text-center ${T.textMuted} italic`}>
-                          Aucune mission {activeTab !== 'dashboard' ? 'dans cette catégorie' : ''}. Ajoute quelque chose !
-                      </div>
-                  )}
-                  {tasks.filter(t => activeTab === 'dashboard' || t.category === activeTab).map(task => (
-                    <div key={task.id} className={`p-5 flex items-center gap-4 ${T.hover} transition group hover:bg-purple-500/5`}>
-                      <span className={`font-mono text-sm font-bold w-12 ${T.textMuted} text-right`}>{task.time}</span>
-                      <button 
-                        onClick={() => toggleTask(task.id)}
-                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${task.done ? 'bg-gradient-to-r from-pink-500 to-purple-600 border-transparent' : `border-purple-500 hover:border-pink-500`}`}
-                      >
-                        {task.done && <CheckCircle2 size={14} className="text-white" />}
-                      </button>
-                      <div className={`flex-1 ${task.done ? 'line-through opacity-40' : ''}`}>
-                        <p className="font-medium">{task.title}</p>
-                      </div>
-                      <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded border ${T.border} ${T.input} ${T.textMuted}`}>{task.category}</span>
-                      <button onClick={() => deleteTask(task.id)} className="text-rose-500 p-2 opacity-0 group-hover:opacity-100 transition hover:scale-110"><Trash2 size={16} /></button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+                <TimelineView
+                  tasks={tasks.filter(t => activeTab === 'dashboard' || t.category === activeTab)}
+                  onToggleTask={toggleTask}
+                  onDeleteTask={deleteTask}
+                  onStartFocus={handleStartFocus}
+                  category={activeTab}
+                  theme={theme}
+                />
+                </motion.div>
+              </motion.div>
+            )}
 
-          {/* SOCIAL */}
-          {activeTab === 'social' && (
-            <div className="h-[calc(100vh-140px)] flex flex-col md:flex-row gap-6 animate-in fade-in">
+            {/* SOCIAL */}
+            {activeTab === 'social' && (
+              <motion.div 
+                key="social"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="h-[calc(100vh-140px)] flex flex-col md:flex-row gap-6"
+              >
               <div className={`w-full md:w-80 rounded-2xl border ${T.border} ${T.sidebar} p-4 flex flex-col ${T.glow}`}>
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="font-bold flex gap-2 items-center"><Users size={18}/> Ma Squad</h3>
@@ -863,12 +984,19 @@ export default function App() {
                   </form>
                 </div>
               )}
-            </div>
+            </motion.div>
           )}
 
           {/* TAB: AI */}
           {activeTab === 'ai' && (
-            <div className="h-full flex flex-col max-w-3xl mx-auto animate-in slide-in-from-bottom-4">
+            <motion.div 
+              key="ai"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+              className="h-full flex flex-col max-w-3xl mx-auto"
+            >
               <div className={`p-4 mb-4 rounded-xl border ${T.border} ${T.surface} flex items-center gap-3`}>
                 <div className={`p-2 ${T.accentLight} rounded-lg`}><Bot className={T.accentText} /></div>
                 <div><h3 className="font-bold text-sm">Coach Stratégique</h3><p className={`text-xs ${T.textMuted}`}>Optimisation tactique activée.</p></div>
@@ -888,12 +1016,23 @@ export default function App() {
                 <input value={newAiMessage} onChange={e => setNewAiMessage(e.target.value)} placeholder="Pose une question..." className={`flex-1 bg-transparent px-4 outline-none ${T.text}`} />
                 <button className={`p-3 rounded-lg ${T.accentBg} text-white hover:opacity-90 transition`}><Send size={18} /></button>
               </form>
-            </div>
+            </motion.div>
           )}
 
           {/* TAB: ADMIN (Visible uniquement si email admin) */}
-          {activeTab === 'admin' && renderAdminPanel()}
+          {activeTab === 'admin' && (
+            <motion.div
+              key="admin"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              {renderAdminPanel()}
+            </motion.div>
+          )}
 
+          </AnimatePresence>
         </div>
       </main>
 
@@ -975,6 +1114,16 @@ export default function App() {
             <button onClick={() => setShowFriendModal(false)} className={`mt-4 text-xs w-full text-center ${T.textMuted} hover:${T.text} transition`}>Fermer</button>
           </div>
         </div>
+      )}
+
+      {/* FOCUS MODE */}
+      {showFocusMode && focusTask && (
+        <FocusMode
+          task={focusTask}
+          onClose={() => setShowFocusMode(false)}
+          onComplete={handleFocusComplete}
+          theme={theme}
+        />
       )}
     </div>
   );
