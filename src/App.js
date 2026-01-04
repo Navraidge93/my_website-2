@@ -3,37 +3,41 @@ import {
   LayoutDashboard, Calendar, CheckCircle2, Brain, Trophy, Wifi, AlertCircle, Clock, 
   Briefcase, GraduationCap, Dumbbell, Plus, Menu, X, Trash2, ArrowRight, 
   Users, Send, Mail, Lock, Share2, Key, Sun, Moon, LogOut,
-  Maximize2, Minimize2, ArrowLeft, Bot, UserPlus, Fingerprint, Bell, ShieldCheck, User
+  Maximize2, Minimize2, ArrowLeft, Bot, UserPlus, Fingerprint, Bell, ShieldCheck, User, Activity
 } from 'lucide-react';
 
 // --- CONFIGURATION ---
 const API_URL = "https://backend-production-c3b5.up.railway.app";
 
-// --- THEME ENGINE ---
+// --- THEME ENGINE (REFONTE MODERNE) ---
 const THEMES = {
   dark: {
-    bg: 'bg-black',
-    sidebar: 'bg-neutral-950',
-    surface: 'bg-neutral-900',
-    border: 'border-neutral-800',
-    text: 'text-neutral-200',
-    textMuted: 'text-neutral-500',
-    accentBg: 'bg-emerald-600',
-    accentText: 'text-emerald-500',
-    input: 'bg-neutral-900',
-    hover: 'hover:bg-neutral-800'
+    bg: 'bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950',
+    sidebar: 'bg-slate-900/80 backdrop-blur-xl',
+    surface: 'bg-slate-900/50 backdrop-blur-sm',
+    border: 'border-purple-500/20',
+    text: 'text-slate-100',
+    textMuted: 'text-slate-400',
+    accentBg: 'bg-gradient-to-r from-pink-500 to-purple-600',
+    accentText: 'text-pink-400',
+    accentLight: 'bg-purple-500/10',
+    input: 'bg-slate-800/50',
+    hover: 'hover:bg-slate-800/70',
+    glow: 'shadow-lg shadow-purple-500/20'
   },
   light: {
-    bg: 'bg-slate-50',
-    sidebar: 'bg-white',
-    surface: 'bg-white',
-    border: 'border-slate-200',
-    text: 'text-slate-800',
+    bg: 'bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50',
+    sidebar: 'bg-white/90 backdrop-blur-xl',
+    surface: 'bg-white/70 backdrop-blur-sm',
+    border: 'border-purple-200',
+    text: 'text-slate-900',
     textMuted: 'text-slate-500',
-    accentBg: 'bg-indigo-600',
-    accentText: 'text-indigo-600',
-    input: 'bg-slate-100',
-    hover: 'hover:bg-slate-100'
+    accentBg: 'bg-gradient-to-r from-pink-500 to-purple-600',
+    accentText: 'text-purple-600',
+    accentLight: 'bg-purple-100',
+    input: 'bg-purple-50/50',
+    hover: 'hover:bg-purple-100/50',
+    glow: 'shadow-lg shadow-purple-200'
   }
 };
 
@@ -52,18 +56,23 @@ export default function App() {
   const [showModal, setShowModal] = useState(false);
   const [showFriendModal, setShowFriendModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showPrivateMessageModal, setShowPrivateMessageModal] = useState(false);
   
   // Data
   const [tasks, setTasks] = useState([]);
   const [friends, setFriends] = useState([]);
   const [messages, setMessages] = useState([]);
+  const [privateMessages, setPrivateMessages] = useState({});
   const [notifications, setNotifications] = useState([]);
   const [aiMessages, setAiMessages] = useState([{ id: 1, sender: "Coach IA", text: "Je suis opérationnel. Donne-moi tes objectifs.", isMe: false }]);
   const [isAiTyping, setIsAiTyping] = useState(false);
+  const [selectedFriend, setSelectedFriend] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Inputs
   const [email, setEmail] = useState('');
   const [newMessage, setNewMessage] = useState('');
+  const [newPrivateMessage, setNewPrivateMessage] = useState('');
   const [newAiMessage, setNewAiMessage] = useState('');
   const [newTask, setNewTask] = useState({ title: '', time: '08:00', category: 'school' });
   const [friendEmail, setFriendEmail] = useState('');
@@ -91,12 +100,15 @@ export default function App() {
         if (activeTab === 'social') {
             fetchMessages();
             fetchFriends(user.id);
+            if (selectedFriend) {
+              fetchPrivateMessages(selectedFriend.id);
+            }
         }
         fetchNotifications(user.id);
       }, 5000);
     }
     return () => clearInterval(interval);
-  }, [user, view, activeTab]);
+  }, [user, view, activeTab, selectedFriend]);
 
   const loadAllData = (userId) => {
     fetchTasks(userId);
@@ -106,6 +118,22 @@ export default function App() {
   };
 
   // --- API CALLS ---
+
+  const showNotification = (message, type = 'info') => {
+    // Create a temporary notification element
+    const notif = document.createElement('div');
+    notif.className = `fixed top-4 right-4 z-[200] p-4 rounded-xl shadow-2xl animate-in slide-in-from-top-2 ${
+      type === 'success' ? 'bg-emerald-600 text-white' : 
+      type === 'error' ? 'bg-red-600 text-white' : 
+      'bg-purple-600 text-white'
+    } font-medium`;
+    notif.textContent = message;
+    document.body.appendChild(notif);
+    setTimeout(() => {
+      notif.classList.add('animate-out', 'fade-out');
+      setTimeout(() => notif.remove(), 300);
+    }, 3000);
+  };
 
   const checkServer = async () => {
     try {
@@ -233,7 +261,7 @@ export default function App() {
     if (!friendEmail) return;
 
     if (friendEmail === user.email) {
-        alert("Tu ne peux pas t'ajouter toi-même !");
+        showNotification("Tu ne peux pas t'ajouter toi-même !", 'error');
         return;
     }
 
@@ -246,17 +274,19 @@ export default function App() {
       
       const data = await res.json();
       if (data.success) {
-        alert("Demande envoyée !");
+        showNotification(`✅ Demande envoyée à ${friendEmail}!`, 'success');
         setShowFriendModal(false);
         setFriendEmail('');
-        fetchNotifications(user.id); // Refresh pour voir si changement (rare)
+        fetchNotifications(user.id);
       } else {
-        alert("Erreur: " + data.error);
+        showNotification("❌ " + data.error, 'error');
       }
-    } catch (err) { alert("Erreur connexion"); }
+    } catch (err) { 
+      showNotification("❌ Erreur de connexion", 'error');
+    }
   };
 
-  const handleAcceptFriend = async (friendId) => {
+  const handleAcceptFriend = async (friendId, friendName) => {
       try {
           const res = await fetch(`${API_URL}/api/social/friends/accept`, {
               method: 'POST',
@@ -266,9 +296,11 @@ export default function App() {
           if(res.ok) {
               fetchFriends(user.id);
               fetchNotifications(user.id);
-              alert("Ami accepté !");
+              showNotification(`✅ ${friendName} est maintenant ton ami!`, 'success');
           }
-      } catch(err) { alert("Erreur lors de l'acceptation"); }
+      } catch(err) { 
+        showNotification("❌ Erreur lors de l'acceptation", 'error');
+      }
   };
 
   const handleSendMessage = async (e) => {
@@ -284,6 +316,63 @@ export default function App() {
       });
       fetchMessages(); 
     } catch (err) { console.error(err); }
+  };
+
+  const handleSendPrivateMessage = async (e) => {
+    e.preventDefault();
+    if (!newPrivateMessage.trim() || !selectedFriend) return;
+    
+    const msgContent = newPrivateMessage;
+    const tempMsg = {
+      id: Date.now(),
+      sender_id: user.id,
+      sender_name: user.name,
+      receiver_id: selectedFriend.id,
+      content: msgContent,
+      created_at: new Date().toISOString(),
+      isMe: true
+    };
+    
+    // Optimistic update
+    setPrivateMessages(prev => ({
+      ...prev,
+      [selectedFriend.id]: [...(prev[selectedFriend.id] || []), tempMsg]
+    }));
+    setNewPrivateMessage('');
+    
+    try {
+      await fetch(`${API_URL}/api/social/private-messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          senderId: user.id, 
+          receiverId: selectedFriend.id,
+          senderName: user.name,
+          content: msgContent 
+        })
+      });
+      fetchPrivateMessages(selectedFriend.id);
+    } catch (err) { 
+      console.error(err);
+      showNotification("❌ Erreur d'envoi du message", 'error');
+    }
+  };
+
+  const fetchPrivateMessages = async (friendId) => {
+    if (!user || !friendId) return;
+    try {
+      const res = await fetch(`${API_URL}/api/social/private-messages?userId=${user.id}&friendId=${friendId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setPrivateMessages(prev => ({
+          ...prev,
+          [friendId]: data.map(msg => ({
+            ...msg,
+            isMe: String(msg.sender_id) === String(user.id)
+          }))
+        }));
+      }
+    } catch (err) { console.error("Erreur private messages", err); }
   };
 
   const sendAiMessage = (e) => {
@@ -396,18 +485,23 @@ export default function App() {
   if (view === 'landing') {
       return (
         <div className={`min-h-screen flex flex-col items-center justify-center p-4 ${T.bg} ${T.text} relative overflow-hidden font-sans`}>
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-neutral-900 via-black to-black opacity-80"></div>
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/30 via-slate-950 to-black opacity-80"></div>
+            
+            {/* Animated background elements */}
+            <div className="absolute top-20 left-20 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
+            <div className="absolute bottom-20 right-20 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl animate-pulse" style={{animationDelay: '1s'}}></div>
+            
             <div className="relative z-10 text-center max-w-2xl px-4 animate-in fade-in zoom-in duration-700">
-                <div className={`w-24 h-24 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-xl flex items-center justify-center mx-auto mb-8 shadow-2xl`}>
+                <div className={`w-24 h-24 bg-gradient-to-br from-pink-500 to-purple-600 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-purple-500/50 animate-bounce-slow`}>
                     <LayoutDashboard size={48} className="text-white" />
                 </div>
-                <h1 className="text-5xl md:text-7xl font-bold tracking-tighter mb-6">Planning OS</h1>
-                <p className={`text-lg md:text-xl mb-12 max-w-lg mx-auto ${T.textMuted}`}>L'outil ultime.</p>
-                <button onClick={() => setView('login')} className={`px-8 py-4 rounded-full bg-white text-black font-bold text-lg hover:scale-105 transition-transform flex items-center gap-2 mx-auto`}>
+                <h1 className="text-5xl md:text-7xl font-bold tracking-tighter mb-6 bg-gradient-to-r from-pink-400 via-purple-400 to-blue-400 bg-clip-text text-transparent">Planning OS</h1>
+                <p className={`text-lg md:text-xl mb-12 max-w-lg mx-auto ${T.textMuted}`}>L'outil ultime pour organiser ta vie.</p>
+                <button onClick={() => setView('login')} className={`px-8 py-4 rounded-full ${T.accentBg} text-white font-bold text-lg hover:scale-105 transition-transform flex items-center gap-2 mx-auto shadow-2xl shadow-purple-500/50`}>
                     Connexion <ArrowRight size={20} />
                 </button>
-                <div className="mt-24 flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${serverStatus === 'online' ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
+                <div className="mt-24 flex items-center gap-2 justify-center">
+                    <div className={`w-2 h-2 rounded-full ${serverStatus === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></div>
                     <span className={`text-xs ${T.textMuted}`}>SERVER: {serverStatus.toUpperCase()}</span>
                 </div>
             </div>
@@ -418,20 +512,24 @@ export default function App() {
   if (view === 'login') {
     return (
       <div className={`min-h-screen flex items-center justify-center p-4 ${T.bg} ${T.text}`}>
-        <button onClick={() => setView('landing')} className={`absolute top-8 left-8 hover:text-white flex items-center gap-2 transition-colors ${T.textMuted}`}>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900/30 via-slate-950 to-black opacity-80"></div>
+        <button onClick={() => setView('landing')} className={`absolute top-8 left-8 hover:text-white flex items-center gap-2 transition-colors ${T.textMuted} z-10`}>
             <ArrowLeft size={20} /> Retour
         </button>
-        <div className={`w-full max-w-sm p-8 rounded-3xl border ${T.border} ${T.surface} shadow-2xl relative overflow-hidden flex flex-col gap-6`}>
+        <div className={`w-full max-w-sm p-8 rounded-3xl border ${T.border} ${T.sidebar} shadow-2xl relative overflow-hidden flex flex-col gap-6 z-10 ${T.glow}`}>
           <div className="text-center">
+            <div className={`w-16 h-16 ${T.accentBg} rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-500/50`}>
+              <Mail size={32} className="text-white" />
+            </div>
             <h1 className="text-2xl font-bold">Connexion</h1>
             <p className={`text-sm ${T.textMuted} mt-2`}>Entre ton email pour accéder à ton espace.</p>
           </div>
           <form onSubmit={handleLogin} className="flex flex-col w-full gap-4">
-            <div className={`flex items-center px-4 py-4 rounded-xl border ${T.border} ${T.input} focus-within:ring-1 transition duration-200`}>
+            <div className={`flex items-center px-4 py-4 rounded-xl border ${T.border} ${T.input} focus-within:ring-2 focus-within:ring-purple-500/50 transition duration-200`}>
                 <Mail size={18} className={T.textMuted} />
                 <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ton@email.com" className={`flex-1 bg-transparent border-none outline-none ml-3 text-base font-medium ${T.text}`} />
             </div>
-            <button disabled={loading} className={`w-full py-4 rounded-xl font-bold text-white ${T.accentBg} hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2`}>
+            <button disabled={loading} className={`w-full py-4 rounded-xl font-bold text-white ${T.accentBg} hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-purple-500/50`}>
                 {loading ? "Chargement..." : "Entrer dans le QG"} <ArrowRight size={18} />
             </button>
           </form>
@@ -442,25 +540,25 @@ export default function App() {
 
   // APP VIEW
   return (
-    <div className={`h-screen w-full flex flex-col md:flex-row overflow-hidden ${T.bg} ${T.text} font-sans selection:${T.accentBg} selection:text-white`}>
+    <div className={`h-screen w-full flex flex-col md:flex-row overflow-hidden ${T.bg} ${T.text} font-sans selection:bg-purple-500 selection:text-white`}>
       
       {/* SIDEBAR */}
-      <aside className={`fixed inset-y-0 left-0 z-50 w-72 ${T.sidebar} flex flex-col transform md:static md:translate-x-0 transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} shrink-0`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-72 ${T.sidebar} flex flex-col transform md:static md:translate-x-0 transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} shrink-0 border-r ${T.border}`}>
         <div className="p-6">
           <div className="flex items-center gap-3 mb-8">
-            <div className={`p-2 rounded-lg ${T.accentBg} text-white`}><LayoutDashboard size={20} /></div>
+            <div className={`p-2 rounded-lg ${T.accentBg} text-white shadow-lg shadow-purple-500/50`}><LayoutDashboard size={20} /></div>
             <span className="font-bold text-lg tracking-tight">Planning OS</span>
           </div>
           
-          <div className={`p-4 rounded-xl ${T.surface} mb-6 flex items-center gap-3 border ${T.border}`}>
-            <div className={`w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center font-bold text-white`}>{user?.name?.charAt(0).toUpperCase()}</div>
+          <div className={`p-4 rounded-xl ${T.surface} mb-6 flex items-center gap-3 border ${T.border} ${T.glow}`}>
+            <div className={`w-10 h-10 rounded-full bg-gradient-to-tr from-pink-500 to-purple-500 flex items-center justify-center font-bold text-white shadow-lg`}>{user?.name?.charAt(0).toUpperCase()}</div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-bold truncate capitalize">{user?.name}</p>
               <div className="flex items-center gap-1.5 mt-0.5"><span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span className={`text-[10px] ${T.textMuted}`}>En ligne</span></div>
             </div>
             <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 hover:bg-white/5 rounded-lg transition">
                 <Bell size={18} className={T.textMuted} />
-                {notifications.length > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full animate-ping"></span>}
+                {notifications.length > 0 && <span className="absolute top-1 right-1 w-2 h-2 bg-pink-500 rounded-full animate-ping"></span>}
             </button>
           </div>
 
@@ -478,9 +576,9 @@ export default function App() {
 
             {/* ADMIN LINK */}
             {user?.email?.includes('admin') && (
-                <div className="mt-8 pt-4 border-t border-dashed border-neutral-800">
-                    <p className="px-4 text-[10px] font-bold uppercase text-rose-500 mb-2">Zone Admin</p>
-                    <button onClick={() => setActiveTab('admin')} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-rose-400 hover:bg-rose-500/10 transition-all">
+                <div className="mt-8 pt-4 border-t border-dashed border-purple-500/30">
+                    <p className="px-4 text-[10px] font-bold uppercase text-pink-500 mb-2">Zone Admin</p>
+                    <button onClick={() => setActiveTab('admin')} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-pink-400 hover:bg-pink-500/10 transition-all">
                         <ShieldCheck size={18} /> Administration
                     </button>
                 </div>
@@ -543,23 +641,23 @@ export default function App() {
               </div>
 
               {/* LISTE DES TÂCHES */}
-              <div className={`rounded-2xl ${T.surface} border ${T.border} overflow-hidden shadow-xl`}>
-                <div className={`p-4 border-b ${T.border} flex justify-between items-center ${T.input} bg-opacity-50`}>
+              <div className={`rounded-2xl ${T.surface} border ${T.border} overflow-hidden shadow-xl ${T.glow}`}>
+                <div className={`p-4 border-b ${T.border} flex justify-between items-center ${T.input}`}>
                   <h3 className="font-bold flex items-center gap-2"><Clock className={T.accentText} size={18} /> Timeline {activeTab !== 'dashboard' && `(${activeTab})`}</h3>
                   <button onClick={toggleFullscreen} className={T.textMuted}>{isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}</button>
                 </div>
-                <div className={`divide-y ${theme === 'dark' ? 'divide-neutral-800' : 'divide-slate-200'}`}>
+                <div className={`divide-y ${theme === 'dark' ? 'divide-purple-900/30' : 'divide-purple-200'}`}>
                   {tasks.filter(t => activeTab === 'dashboard' || t.category === activeTab).length === 0 && (
                       <div className={`p-12 text-center ${T.textMuted} italic`}>
                           Aucune mission {activeTab !== 'dashboard' ? 'dans cette catégorie' : ''}. Ajoute quelque chose !
                       </div>
                   )}
                   {tasks.filter(t => activeTab === 'dashboard' || t.category === activeTab).map(task => (
-                    <div key={task.id} className={`p-5 flex items-center gap-4 ${T.hover} transition group`}>
+                    <div key={task.id} className={`p-5 flex items-center gap-4 ${T.hover} transition group hover:bg-purple-500/5`}>
                       <span className={`font-mono text-sm font-bold w-12 ${T.textMuted} text-right`}>{task.time}</span>
                       <button 
                         onClick={() => toggleTask(task.id)}
-                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${task.done ? 'bg-emerald-500 border-emerald-500' : `border-neutral-500 hover:${T.accentBorder}`}`}
+                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${task.done ? 'bg-gradient-to-r from-pink-500 to-purple-600 border-transparent' : `border-purple-500 hover:border-pink-500`}`}
                       >
                         {task.done && <CheckCircle2 size={14} className="text-white" />}
                       </button>
@@ -567,7 +665,7 @@ export default function App() {
                         <p className="font-medium">{task.title}</p>
                       </div>
                       <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded border ${T.border} ${T.input} ${T.textMuted}`}>{task.category}</span>
-                      <button onClick={() => deleteTask(task.id)} className="text-rose-500 p-2 opacity-0 group-hover:opacity-100 transition"><Trash2 size={16} /></button>
+                      <button onClick={() => deleteTask(task.id)} className="text-rose-500 p-2 opacity-0 group-hover:opacity-100 transition hover:scale-110"><Trash2 size={16} /></button>
                     </div>
                   ))}
                 </div>
@@ -578,55 +676,126 @@ export default function App() {
           {/* SOCIAL */}
           {activeTab === 'social' && (
             <div className="h-[calc(100vh-140px)] flex flex-col md:flex-row gap-6 animate-in fade-in">
-              <div className={`w-full md:w-80 rounded-2xl border ${T.border} ${T.sidebar} p-4`}>
-                <div className="flex justify-between items-center mb-4"><h3 className="font-bold flex gap-2 items-center"><Users size={18}/> Ma Squad</h3><button onClick={() => setShowFriendModal(true)} className={`${T.accentText} hover:${T.accentLight} p-1 rounded transition`}><UserPlus size={18}/></button></div>
+              <div className={`w-full md:w-80 rounded-2xl border ${T.border} ${T.sidebar} p-4 flex flex-col ${T.glow}`}>
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-bold flex gap-2 items-center"><Users size={18}/> Ma Squad</h3>
+                  <button onClick={() => setShowFriendModal(true)} className={`${T.accentText} hover:${T.accentLight} p-1 rounded transition`}><UserPlus size={18}/></button>
+                </div>
+                
+                {/* BARRE DE RECHERCHE */}
+                <div className="mb-4">
+                  <input 
+                    type="text" 
+                    placeholder="Rechercher un ami..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className={`w-full p-2 rounded-lg border ${T.border} ${T.input} text-sm outline-none focus:ring-2 focus:ring-purple-500/50 transition`}
+                  />
+                </div>
                 
                 {/* DEMANDES EN ATTENTE */}
                 {notifications.filter(n => n.type === 'friend_request').length > 0 && (
                     <div className="mb-4 space-y-2">
                         <p className={`text-[10px] font-bold uppercase ${T.textMuted}`}>En attente</p>
                         {notifications.filter(n => n.type === 'friend_request').map(n => (
-                            <div key={n.id} className={`p-3 rounded-xl border ${T.border} bg-indigo-500/10 border-indigo-500/20`}>
-                                <p className="text-xs mb-2"><span className="font-bold text-indigo-400">{n.from_name}</span> veut te rejoindre.</p>
-                                <button onClick={() => handleAcceptFriend(n.from_user_id)} className="w-full py-1 bg-indigo-600 text-white rounded text-xs font-bold hover:bg-indigo-500">Accepter</button>
+                            <div key={n.id} className={`p-3 rounded-xl border ${T.border} bg-pink-500/10 border-pink-500/20 animate-pulse-slow`}>
+                                <p className="text-xs mb-2"><span className="font-bold text-pink-400">{n.from_name}</span> veut te rejoindre.</p>
+                                <button onClick={() => handleAcceptFriend(n.from_user_id, n.from_name)} className="w-full py-1 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded text-xs font-bold hover:opacity-90 transition">Accepter</button>
                             </div>
                         ))}
                     </div>
                 )}
 
-                <div className="space-y-2">
+                <div className="flex-1 overflow-y-auto space-y-2">
                   {friends.length === 0 && <p className={`text-xs ${T.textMuted} italic text-center py-4`}>Pas encore d'amis acceptés.</p>}
-                  {friends.map(f => (
-                    <div key={f.id} className={`p-3 rounded-xl border ${T.border} ${T.hover} flex items-center gap-3 cursor-pointer transition`}>
-                      <div className="relative"><div className="w-10 h-10 rounded-full bg-neutral-700 flex items-center justify-center font-bold text-white">{f.name[0]}</div><div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-zinc-900 ${f.status === 'online' ? 'bg-emerald-500' : 'bg-zinc-500'}`}></div></div>
-                      <div className='overflow-hidden'><p className="text-sm font-bold truncate">{f.name}</p><p className={`text-xs ${T.textMuted} truncate`}>{f.email}</p></div>
+                  {friends.filter(f => !searchQuery || f.name.toLowerCase().includes(searchQuery.toLowerCase()) || f.email.toLowerCase().includes(searchQuery.toLowerCase())).map(f => (
+                    <div 
+                      key={f.id} 
+                      onClick={() => {
+                        setSelectedFriend(f);
+                        fetchPrivateMessages(f.id);
+                        setShowPrivateMessageModal(true);
+                      }}
+                      className={`p-3 rounded-xl border ${T.border} ${selectedFriend?.id === f.id ? T.accentLight : T.hover} flex items-center gap-3 cursor-pointer transition-all hover:scale-[1.02] ${T.glow}`}
+                    >
+                      <div className="relative">
+                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center font-bold text-white`}>{f.name[0]}</div>
+                        <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 ${theme === 'dark' ? 'border-slate-900' : 'border-white'} ${f.status === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`}></div>
+                      </div>
+                      <div className='overflow-hidden flex-1'>
+                        <p className="text-sm font-bold truncate">{f.name}</p>
+                        <p className={`text-xs ${T.textMuted} truncate`}>{f.email}</p>
+                      </div>
+                      {privateMessages[f.id]?.length > 0 && (
+                        <span className="w-2 h-2 rounded-full bg-pink-500 animate-pulse"></span>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* CHAT */}
-              <div className={`flex-1 rounded-2xl border ${T.border} ${T.sidebar} flex flex-col overflow-hidden`}>
-                <div className={`p-4 border-b ${T.border} flex justify-between items-center ${T.surface} bg-opacity-50`}>
-                  <div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-full ${T.accentLight} ${T.accentText} flex items-center justify-center font-bold`}>#</div><div><p className="font-bold text-sm">Général</p><p className={`text-xs ${T.textMuted}`}>{friends.length} membres</p></div></div>
+              {/* CHAT PRINCIPAL OU PRIVÉ */}
+              {!showPrivateMessageModal ? (
+                <div className={`flex-1 rounded-2xl border ${T.border} ${T.sidebar} flex flex-col overflow-hidden ${T.glow}`}>
+                  <div className={`p-4 border-b ${T.border} flex justify-between items-center ${T.surface}`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-full ${T.accentLight} ${T.accentText} flex items-center justify-center font-bold`}>#</div>
+                      <div><p className="font-bold text-sm">Chat Général</p><p className={`text-xs ${T.textMuted}`}>{friends.length} membres</p></div>
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {messages.map(msg => (
+                      <div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2`}>
+                        <div className={`max-w-[70%] rounded-2xl p-4 ${msg.isMe ? `${T.accentBg} text-white shadow-lg shadow-purple-500/30` : `${T.input} border ${T.border}`}`}>
+                          {!msg.isMe && <p className={`text-xs font-bold mb-1 ${T.accentText}`}>{msg.sender}</p>}
+                          <p className="text-sm">{msg.text}</p>
+                          <p className={`text-[10px] opacity-60 text-right mt-1`}>{msg.time}</p>
+                        </div>
+                      </div>
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </div>
+                  <form onSubmit={handleSendMessage} className={`p-4 border-t ${T.border} ${T.surface} flex gap-2`}>
+                    <input value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Message..." className={`flex-1 bg-transparent border-none outline-none text-sm px-2 ${T.text}`} />
+                    <button className={`p-2 rounded-lg ${T.accentBg} text-white hover:opacity-90 transition ${T.glow}`}><Send size={18} /></button>
+                  </form>
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                  {messages.map(msg => (
-                    <div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[70%] rounded-2xl p-4 ${msg.isMe ? `${T.accentBg} text-white` : `${T.input} border ${T.border}`}`}>
-                        {!msg.isMe && <p className={`text-xs font-bold mb-1 ${T.accentText}`}>{msg.sender}</p>}
-                        <p className="text-sm">{msg.text}</p>
-                        <p className={`text-[10px] opacity-60 text-right mt-1`}>{msg.time}</p>
+              ) : (
+                <div className={`flex-1 rounded-2xl border ${T.border} ${T.sidebar} flex flex-col overflow-hidden ${T.glow}`}>
+                  <div className={`p-4 border-b ${T.border} flex justify-between items-center ${T.surface}`}>
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => setShowPrivateMessageModal(false)} className={`${T.textMuted} hover:${T.text} transition`}>
+                        <ArrowLeft size={20} />
+                      </button>
+                      <div className={`w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center font-bold text-white`}>{selectedFriend?.name[0]}</div>
+                      <div>
+                        <p className="font-bold text-sm">{selectedFriend?.name}</p>
+                        <p className={`text-xs ${T.textMuted}`}>Message privé</p>
                       </div>
                     </div>
-                  ))}
-                  <div ref={messagesEndRef} />
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    {(!privateMessages[selectedFriend?.id] || privateMessages[selectedFriend?.id].length === 0) && (
+                      <div className="text-center py-12">
+                        <p className={`${T.textMuted} text-sm`}>Aucun message. Commence la conversation !</p>
+                      </div>
+                    )}
+                    {(privateMessages[selectedFriend?.id] || []).map(msg => (
+                      <div key={msg.id} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom-2`}>
+                        <div className={`max-w-[70%] rounded-2xl p-4 ${msg.isMe ? `${T.accentBg} text-white shadow-lg shadow-purple-500/30` : `${T.input} border ${T.border}`}`}>
+                          <p className="text-sm">{msg.content}</p>
+                          <p className={`text-[10px] opacity-60 text-right mt-1`}>{new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                        </div>
+                      </div>
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </div>
+                  <form onSubmit={handleSendPrivateMessage} className={`p-4 border-t ${T.border} ${T.surface} flex gap-2`}>
+                    <input value={newPrivateMessage} onChange={e => setNewPrivateMessage(e.target.value)} placeholder={`Message à ${selectedFriend?.name}...`} className={`flex-1 bg-transparent border-none outline-none text-sm px-2 ${T.text}`} />
+                    <button className={`p-2 rounded-lg ${T.accentBg} text-white hover:opacity-90 transition ${T.glow}`}><Send size={18} /></button>
+                  </form>
                 </div>
-                <form onSubmit={handleSendMessage} className={`p-4 border-t ${T.border} ${T.surface} flex gap-2`}>
-                  <input value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder="Message..." className={`flex-1 bg-transparent border-none outline-none text-sm px-2 ${T.text}`} />
-                  <button className={`p-2 rounded-lg ${T.accentBg} text-white hover:opacity-90 transition`}><Send size={18} /></button>
-                </form>
-              </div>
+              )}
             </div>
           )}
 
@@ -664,17 +833,17 @@ export default function App() {
       {/* MODAL TASK */}
       {showModal && (
         <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
-          <div className={`${T.sidebar} border ${T.border} w-full max-w-md rounded-2xl p-6 shadow-2xl`}>
-            <h3 className="text-xl font-bold mb-6">Ajouter Tâche</h3>
+          <div className={`${T.sidebar} border ${T.border} w-full max-w-md rounded-2xl p-6 shadow-2xl ${T.glow}`}>
+            <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><Plus className={T.accentText} /> Ajouter Tâche</h3>
             <form onSubmit={handleAddTask} className="space-y-4">
-              <input autoFocus value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} className={`w-full p-3 rounded-lg border ${T.border} ${T.input} focus:ring-1 ${T.accentRing} outline-none`} placeholder="Titre..." />
+              <input autoFocus value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} className={`w-full p-3 rounded-lg border ${T.border} ${T.input} focus:ring-2 focus:ring-purple-500/50 outline-none`} placeholder="Titre..." />
               <div className="flex gap-4">
                 <input type="time" value={newTask.time} onChange={e => setNewTask({...newTask, time: e.target.value})} className={`w-full p-3 rounded-lg border ${T.border} ${T.input} outline-none`} />
                 <select value={newTask.category} onChange={e => setNewTask({...newTask, category: e.target.value})} className={`w-full p-3 rounded-lg border ${T.border} ${T.input} outline-none`}>
                   <option value="school">Études</option><option value="business">Business</option><option value="health">Sport</option>
                 </select>
               </div>
-              <div className="flex gap-2 mt-4"><button type="button" onClick={() => setShowModal(false)} className={`flex-1 py-3 ${T.input} rounded-lg`}>Annuler</button><button className={`flex-1 py-3 ${T.accentBg} text-white rounded-lg`}>Valider</button></div>
+              <div className="flex gap-2 mt-4"><button type="button" onClick={() => setShowModal(false)} className={`flex-1 py-3 ${T.input} rounded-lg hover:opacity-80 transition`}>Annuler</button><button className={`flex-1 py-3 ${T.accentBg} text-white rounded-lg hover:opacity-90 transition shadow-lg shadow-purple-500/50`}>Valider</button></div>
             </form>
           </div>
         </div>
@@ -683,14 +852,14 @@ export default function App() {
       {/* MODAL FRIEND */}
       {showFriendModal && (
         <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in">
-          <div className={`${T.sidebar} border ${T.border} w-full max-w-sm rounded-2xl p-6 shadow-2xl`}>
-            <h3 className="font-bold mb-4">Recruter un allié</h3>
-            <p className={`text-xs ${T.textMuted} mb-4`}>Entre l'email de ton ami.</p>
+          <div className={`${T.sidebar} border ${T.border} w-full max-w-sm rounded-2xl p-6 shadow-2xl ${T.glow}`}>
+            <h3 className="font-bold mb-4 flex items-center gap-2"><UserPlus className={T.accentText} /> Recruter un allié</h3>
+            <p className={`text-xs ${T.textMuted} mb-4`}>Entre l'email de ton ami pour l'ajouter.</p>
             <form onSubmit={handleAddFriend} className="flex gap-2">
-              <input autoFocus value={friendEmail} onChange={e => setFriendEmail(e.target.value)} className={`flex-1 p-3 rounded-lg border ${T.border} ${T.input} outline-none`} placeholder="email@ami.com..." />
-              <button className={`p-3 ${T.accentBg} text-white rounded-lg`}><Plus/></button>
+              <input autoFocus value={friendEmail} onChange={e => setFriendEmail(e.target.value)} className={`flex-1 p-3 rounded-lg border ${T.border} ${T.input} outline-none focus:ring-2 focus:ring-purple-500/50`} placeholder="email@ami.com..." />
+              <button className={`p-3 ${T.accentBg} text-white rounded-lg hover:opacity-90 transition shadow-lg shadow-purple-500/50`}><Plus/></button>
             </form>
-            <button onClick={() => setShowFriendModal(false)} className={`mt-4 text-xs w-full text-center ${T.textMuted} hover:${T.text}`}>Fermer</button>
+            <button onClick={() => setShowFriendModal(false)} className={`mt-4 text-xs w-full text-center ${T.textMuted} hover:${T.text} transition`}>Fermer</button>
           </div>
         </div>
       )}
